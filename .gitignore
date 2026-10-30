@@ -1,0 +1,19 @@
+# Laravel secrets and dependencies
+/src/.env
+/src/.env.*
+!/src/.env.example
+/src/vendor/
+/src/node_modules/
+/src/storage/*.key
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local logs and database exports
+*.log
+*.sql
+*.sql.gz
+.env
