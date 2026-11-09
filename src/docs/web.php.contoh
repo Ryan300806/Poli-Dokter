@@ -1,0 +1,13 @@
+<?php
+
+use Illuminate\Support\Facades\Route;
+
+// Rute bawaan project (dari BE), biarkan apa adanya
+Route::get('/', function () {
+    return view('welcome');
+});
+
+// Rute halaman FE per anggota (UI-001 sampai UI-023). Berkas ada di routes/fe/*.php
+foreach (glob(__DIR__.'/fe/*.php') as $berkasRuteFe) {
+    require $berkasRuteFe;
+}
