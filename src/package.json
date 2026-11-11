@@ -20,7 +20,7 @@
         "@inertiajs/react": "^3.11.0",
         "@inertiajs/vite": "^3.11.0",
         "@vitejs/plugin-react": "^6.2.1",
-        "lucide-react": "^1.70.0",
+        "lucide-react": "^1.71.0",
         "react": "^19.3.1",
         "react-dom": "^19.3.1"
     }
