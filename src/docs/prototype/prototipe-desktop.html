@@ -1,0 +1,590 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prototype Kelompok 3 - Rawat Jalan (Poli)</title>
+<style>
+:root{
+  --green-light:#edf5e7; --green-light-hover:#e4f0dc; --green-light-active:#c7e0b6;
+  --green:#499a13; --green-hover:#428b11; --green-active:#3a7b0f;
+  --green-dark:#37740e; --green-darker:#214509;
+  --red:#d62828; --red-light:#fdecec;
+  --text:#000; --text-2:#555; --text-3:#8e98a8; --border:#e9ebf8; --bg:#f6f8f4; --white:#fff;
+  --amber:#b7791f; --amber-light:#fff6e0;
+  --font:"SF Pro Text","SF Pro Display",-apple-system,BlinkMacSystemFont,"Helvetica Neue",Inter,Arial,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--font);background:var(--bg);color:var(--text);font-size:14px}
+header.top{height:64px;background:var(--white);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 32px;position:sticky;top:0;z-index:10}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:16px}
+.logo{width:32px;height:32px;border-radius:8px;background:var(--green);color:#fff;display:grid;place-items:center;font-weight:700}
+.who{color:var(--text-2);display:flex;gap:12px;align-items:center}
+.layout{display:grid;grid-template-columns:256px 1fr;min-height:calc(100vh - 64px)}
+aside{background:var(--white);border-right:1px solid var(--border);padding:20px 16px}
+aside a{display:block;padding:10px 12px;border-radius:8px;color:var(--text);text-decoration:none;margin-bottom:4px;font-weight:500}
+aside a:hover{background:var(--green-light-hover)}
+aside a.active{background:var(--green-light-active);color:var(--green-darker)}
+main{padding:28px 32px;max-width:1200px;width:100%}
+h1{font-size:24px;margin:0 0 4px}
+h2{font-size:17px;margin:0 0 12px}
+.sub{color:var(--text-2);margin-bottom:20px}
+.card{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.stat{background:var(--green-light);border-radius:12px;padding:16px}
+.stat b{display:block;font-size:26px;color:var(--green-darker)}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid transparent;border-radius:8px;padding:9px 16px;font:inherit;font-weight:600;cursor:pointer;background:var(--green);color:#fff}
+.btn:hover{background:var(--green-hover)}
+.btn:active{background:var(--green-active)}
+.btn.light{background:var(--green-light);color:var(--green-darker)}
+.btn.light:hover{background:var(--green-light-hover)}
+.btn.outline{background:#fff;border-color:var(--border);color:var(--text)}
+.btn.danger{background:var(--red)}
+.btn.sm{padding:6px 10px;font-size:13px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+label{display:block;font-weight:500;margin-bottom:6px;font-size:13px}
+input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font:inherit;background:#fff;margin-bottom:14px}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--green-light-active);border-color:var(--green)}
+textarea{min-height:90px;resize:vertical}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.spacer{flex:1}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+th{color:var(--text-2);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.3px}
+.badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;background:var(--green-light);color:var(--green-darker)}
+.badge.warn{background:var(--amber-light);color:var(--amber)}
+.badge.err{background:var(--red-light);color:var(--red)}
+.badge.gray{background:#eef0f4;color:var(--text-2)}
+.ticket{border:2px dashed var(--green);border-radius:12px;padding:18px;text-align:center;background:var(--green-light)}
+.ticket .no{font-size:32px;font-weight:700;color:var(--green-darker)}
+.alert{padding:12px 14px;border-radius:8px;margin-bottom:14px;background:var(--green-light);color:var(--green-darker)}
+.alert.err{background:var(--red-light);color:var(--red)}
+.alert.warn{background:var(--amber-light);color:var(--amber)}
+.muted{color:var(--text-3)}
+.errtxt{color:var(--red);font-size:12px;margin:-10px 0 12px}
+/* modal */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);display:grid;place-items:center;z-index:50}
+.modal{background:#fff;border-radius:14px;width:460px;max-width:92vw;padding:24px;box-shadow:0 20px 50px rgba(0,0,0,.2)}
+.modal h2{display:flex;justify-content:space-between;align-items:center}
+.xbtn{background:none;border:0;font-size:18px;cursor:pointer;color:var(--text-2)}
+.toast{position:fixed;right:24px;bottom:24px;background:var(--green-darker);color:#fff;padding:12px 18px;border-radius:10px;z-index:60;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+.toast.err{background:var(--red)}
+/* login */
+.auth{min-height:100vh;display:grid;place-items:center;background:linear-gradient(180deg,var(--green-light),var(--bg))}
+.authcard{background:#fff;border-radius:16px;padding:32px;width:440px;max-width:92vw;border:1px solid var(--border)}
+.tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.tab{padding:8px 14px;border-radius:999px;border:1px solid var(--border);background:#fff;cursor:pointer;font:inherit}
+.tab.on{background:var(--green);color:#fff;border-color:var(--green)}
+.slot{border:1px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;background:#fff}
+.slot.on{border:2px solid var(--green);background:var(--green-light)}
+.slot.full{opacity:.6}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+/* ============ DATA DEMO ============ */
+const TODAY = '2026-10-31';
+const S = {
+  role: null,
+  pasien: { id:'P1', nama:'Siti Rahayu', nik:'3573010101900001', ttl:'Malang, 01-01-1990', alamat:'Jl. Veteran No. 12, Malang', jk:'Perempuan', kontak:'Budi Rahayu - 0812-0000-1111', lastEdit:'2025-03-10' },
+  registeredNik: ['3573010101900001'],
+  slots: [
+    { id:'J1', poli:'Poli Umum', dokter:'dr. Andi Pratama', tgl:'2026-11-03', jam:'08:00 - 09:00', kuota:2, terisi:1 },
+    { id:'J2', poli:'Poli Umum', dokter:'dr. Andi Pratama', tgl:'2026-11-03', jam:'09:00 - 10:00', kuota:2, terisi:2 },
+    { id:'J3', poli:'Poli Umum', dokter:'dr. Andi Pratama', tgl:'2026-11-04', jam:'10:00 - 11:00', kuota:3, terisi:0 },
+    { id:'J4', poli:'Poli Gigi', dokter:'drg. Maya Lestari', tgl:'2026-11-04', jam:'13:00 - 14:00', kuota:3, terisi:1 }
+  ],
+  reservasi: [ { id:'R1', pasienId:'P1', slotId:'J1', status:'Aktif', antrean:'A-012' } ],
+  pasienLain: { P2:{ id:'P2', nama:'Budi Santoso', nik:'3573010202850002', ttl:'Malang, 02-02-1985', alamat:'Jl. Ijen 5', jk:'Laki-laki', kontak:'Ani - 0813-0000-2222' } },
+  antrean: [
+    { id:'A-012', pasienId:'P1', nama:'Siti Rahayu', poli:'Poli Umum', status:'Menunggu Triage', vitals:null },
+    { id:'A-013', pasienId:'P2', nama:'Budi Santoso', poli:'Poli Umum', status:'Menunggu Triage', vitals:null }
+  ],
+  rm: { P1:{ riwayat:['Hipertensi ringan (2024)'], alergi:'Seafood' }, P2:{ riwayat:[] } },
+  diag: {},
+  eresep: [
+    { id:'ER-001', pasienId:'P1', nama:'Siti Rahayu', dokter:'dr. Andi Pratama', status:'Baru', lengkap:true,
+      obat:[ { nama:'Amlodipine 5 mg', dosis:'1 tablet', jumlah:10, aturan:'1x sehari sesudah makan', stok:20 } ] },
+    { id:'ER-002', pasienId:'P2', nama:'Budi Santoso', dokter:'dr. Andi Pratama', status:'Baru', lengkap:false,
+      obat:[ { nama:'Paracetamol 500 mg', dosis:'', jumlah:6, aturan:'3x sehari', stok:0 } ] }
+  ],
+  seq: 100
+};
+const MENU = {
+  pasien:[['Beranda','#/pasien'],['Penjadwalan Poli','#/pasien/jadwal'],['Riwayat / Jadwal Saya','#/pasien/riwayat'],['Profil Pasien','#/pasien/profil']],
+  dokter:[['Jadwal Saya','#/dokter'],['Antrean Periksa','#/dokter/antrean']],
+  perawat:[['Antrean Triage','#/perawat']],
+  apoteker:[['E-Resep','#/apoteker']]
+};
+const ROLE_NAME = { pasien:'Pasien', dokter:'Dokter', perawat:'Perawat', apoteker:'Apoteker' };
+const ROLE_HOME = { pasien:'#/pasien', dokter:'#/dokter', perawat:'#/perawat', apoteker:'#/apoteker' };
+
+/* ============ HELPERS ============ */
+const $ = s => document.querySelector(s);
+const app = () => $('#app');
+const go = h => { location.hash = h; };
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function toast(msg, err){ const t=document.createElement('div'); t.className='toast'+(err?' err':''); t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),2600); }
+function modal(title, body, buttons){
+  closeModal();
+  const o=document.createElement('div'); o.className='overlay'; o.id='ov';
+  o.innerHTML = `<div class="modal" role="dialog"><h2>${esc(title)}<button class="xbtn" data-act="close" aria-label="Tutup">&times;</button></h2><div style="margin:8px 0 18px">${body}</div>${buttons===''?'':`<div class="row" style="justify-content:flex-end">${buttons===undefined?'<button class="btn" data-act="close">OK</button>':buttons}</div>`}</div>`;
+  document.body.appendChild(o);
+}
+function closeModal(){ const o=$('#ov'); if(o) o.remove(); }
+function tgl(s){ const d=new Date(s+'T00:00:00'); return d.toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'}); }
+function daysBetween(a,b){ return Math.floor((new Date(b)-new Date(a))/86400000); }
+function nextTicket(){ S.seq++; return 'A-'+S.seq; }
+function slotById(id){ return S.slots.find(s=>s.id===id); }
+function patientById(id){ return id===S.pasien.id ? S.pasien : S.pasienLain[id]; }
+
+/* ============ AUTH ============ */
+function renderLogin(){
+  app().innerHTML = `
+  <div class="auth"><div class="authcard">
+    <div class="brand" style="margin-bottom:6px"><div class="logo">R</div> Sistem Rawat Jalan (Poli)</div>
+    <div class="muted" style="margin-bottom:20px">Kelompok 3 - Prototype desktop</div>
+    <h2>Masuk</h2>
+    <form data-form="login">
+      <label>NIK / No.KK</label><input name="nik" placeholder="16 digit NIK" required>
+      <label>Password</label><input name="pw" type="password" required>
+      <label>Konfirmasi Password</label><input name="pw2" type="password" required>
+      <div id="loginErr"></div>
+      <label>Peran (demo)</label>
+      <select name="role">
+        <option value="pasien">Pasien</option><option value="dokter">Dokter</option>
+        <option value="perawat">Perawat</option><option value="apoteker">Apoteker</option>
+      </select>
+      <button class="btn" style="width:100%" type="submit">Masuk</button>
+    </form>
+    <p class="muted" style="text-align:center;margin-top:16px">Belum punya akun? <a href="#/register" style="color:var(--green-darker);font-weight:600">Registrasi pasien baru</a></p>
+  </div></div>`;
+}
+function renderRegister(){
+  app().innerHTML = `
+  <div class="auth"><div class="authcard" style="width:560px">
+    <div class="brand" style="margin-bottom:16px"><div class="logo">R</div> Registrasi Pasien Baru</div>
+    <form data-form="register">
+      <div class="grid2">
+        <div><label>NIK / No.KK</label><input name="nik" required></div>
+        <div><label>Nama Lengkap</label><input name="nama" required></div>
+        <div><label>Tempat Lahir</label><input name="tempat" required></div>
+        <div><label>Tanggal Lahir</label><input name="tgl" type="date" required></div>
+      </div>
+      <label>Alamat</label><input name="alamat" required>
+      <div class="grid2">
+        <div><label>Jenis Kelamin</label><select name="jk"><option>Perempuan</option><option>Laki-laki</option></select></div>
+        <div><label>Kontak Darurat</label><input name="kontak" required></div>
+      </div>
+      <label>Password</label><input name="pw" type="password" required>
+      <div class="row"><button class="btn outline" type="button" data-act="toLogin">Kembali</button><div class="spacer"></div><button class="btn" type="submit">Daftar</button></div>
+    </form>
+  </div></div>`;
+}
+
+/* ============ LAYOUT ============ */
+function shell(role, active, content){
+  const links = MENU[role].map(([t,h])=>`<a href="${h}" class="${h===active?'active':''}">${t}</a>`).join('');
+  app().innerHTML = `
+  <header class="top"><div class="brand"><div class="logo">R</div> Rawat Jalan (Poli) - Kelompok 3</div>
+    <div class="who"><span>${ROLE_NAME[role]}: ${esc(role==='pasien'?S.pasien.nama:'Akun '+ROLE_NAME[role])}</span><button class="btn outline sm" data-act="logout">Keluar</button></div></header>
+  <div class="layout"><aside>${links}</aside><main>${content}</main></div>`;
+}
+
+/* ============ PASIEN ============ */
+function pBeranda(){
+  const r = S.reservasi.find(x=>x.status==='Aktif');
+  const next = r ? slotById(r.slotId) : null;
+  return `<h1>Halo, ${esc(S.pasien.nama)}</h1><div class="sub">Selamat datang di layanan rawat jalan.</div>
+  <div class="card" style="border-left:4px solid var(--green)">
+    <h2>Jadwal Kunjungan Terdekat</h2>
+    ${next ? `<div class="row"><div><b>${esc(next.poli)}</b> - ${esc(next.dokter)}<br><span class="muted">${tgl(next.tgl)}, ${esc(next.jam)}</span></div><div class="spacer"></div><span class="badge">Antrean ${esc(r.antrean)}</span></div>`
+            : `<div class="muted">Belum ada jadwal aktif.</div>`}
+  </div>
+  <div class="grid3">
+    <div class="stat"><span class="muted">Reservasi aktif</span><b>${S.reservasi.filter(x=>x.status==='Aktif').length}</b></div>
+    <div class="stat"><span class="muted">Riwayat kunjungan</span><b>${S.reservasi.filter(x=>x.status!=='Aktif').length}</b></div>
+    <div class="stat"><span class="muted">Terakhir update data</span><b style="font-size:18px">${esc(S.pasien.lastEdit)}</b></div>
+  </div>
+  <div class="card"><h2>Menu Cepat</h2><div class="row"><button class="btn" data-act="go" data-arg="#/pasien/jadwal">Buat Janji Temu</button><button class="btn light" data-act="go" data-arg="#/pasien/riwayat">Lihat Jadwal Saya</button><button class="btn outline" data-act="go" data-arg="#/pasien/profil">Profil</button></div></div>`;
+}
+let pJadwal = { poli:'Semua', dokter:'', tgl:'', slot:null };
+function pPenjadwalan(){
+  const polis = ['Semua', ...new Set(S.slots.map(s=>s.poli))];
+  const list = S.slots.filter(s=>pJadwal.poli==='Semua'||s.poli===pJadwal.poli);
+  return `<h1>Penjadwalan Poli</h1><div class="sub">Pilih poli, dokter, tanggal, dan slot jam yang tersedia secara real-time.</div>
+  <div class="card">
+    <div class="tabs">${polis.map(p=>`<button class="tab ${pJadwal.poli===p?'on':''}" data-act="pPoli" data-arg="${esc(p)}">${esc(p)}</button>`).join('')}</div>
+    <div class="grid3" id="slotGrid">
+      ${list.map(s=>{ const sisa=s.kuota-s.terisi; const full=sisa<=0; return `
+        <div class="slot ${full?'full':''} ${pJadwal.slot===s.id?'on':''}" data-act="pSlot" data-arg="${s.id}">
+          <div class="row"><b>${esc(s.poli)}</b><div class="spacer"></div>${full?'<span class="badge err">Penuh</span>':`<span class="badge">Sisa ${sisa}</span>`}</div>
+          <div style="margin:6px 0">${esc(s.dokter)}</div>
+          <div class="muted">${tgl(s.tgl)}<br>${esc(s.jam)}</div>
+        </div>`;}).join('')}
+    </div>
+  </div>
+  <div class="card"><h2>Konfirmasi Pendaftaran</h2>
+    <div class="row"><div class="muted">${pJadwal.slot ? 'Slot terpilih: '+esc((()=>{const s=slotById(pJadwal.slot);return s.poli+' - '+s.dokter+', '+tgl(s.tgl)+', '+s.jam})()) : 'Belum ada slot dipilih.'}</div>
+    <div class="spacer"></div><button class="btn" data-act="pBooking" ${pJadwal.slot?'':'disabled'}>Konfirmasi Booking</button></div>
+  </div>`;
+}
+function pRiwayat(tab){
+  const aktif = S.reservasi.filter(r=>r.status==='Aktif');
+  const riwayat = S.reservasi.filter(r=>r.status!=='Aktif');
+  const items = tab==='aktif'?aktif:riwayat;
+  return `<h1>Riwayat / Jadwal Saya</h1><div class="sub">Kelola reservasi: ubah jadwal atau batalkan kunjungan.</div>
+  <div class="tabs"><button class="tab ${tab==='aktif'?'on':''}" data-act="go" data-arg="#/pasien/riwayat">Aktif (${aktif.length})</button><button class="tab ${tab==='riwayat'?'on':''}" data-act="go" data-arg="#/pasien/riwayat?tab=riwayat">Riwayat (${riwayat.length})</button></div>
+  ${items.length? items.map(r=>{ const s=slotById(r.slotId); return `
+    <div class="card"><div class="row">
+      <div style="flex:1"><b>${esc(s.poli)}</b> - ${esc(s.dokter)}<br><span class="muted">${tgl(s.tgl)}, ${esc(s.jam)}</span></div>
+      <span class="badge ${r.status==='Aktif'?'':'gray'}">${esc(r.status)}</span>
+      ${r.status==='Aktif'?`<span class="badge warn">Antrean ${esc(r.antrean)}</span>
+      <button class="btn light sm" data-act="rUbah" data-arg="${r.id}">Ubah Jadwal</button>
+      <button class="btn danger sm" data-act="rBatal" data-arg="${r.id}">Batalkan Reservasi</button>`:''}
+    </div></div>`;}).join('') : `<div class="card muted">Tidak ada data.</div>`}
+  <div class="alert warn" style="margin-top:8px">Pengingat: jika sudah ada pasien terdaftar pada slot yang dibatalkan dokter, sistem akan menampilkan notifikasi pembatalan.</div>`;
+}
+function pProfil(){
+  const p=S.pasien; const days=daysBetween(p.lastEdit,TODAY); const bisa=days>=365;
+  return `<h1>Profil Pasien</h1><div class="sub">Data diri hanya bisa diubah satu kali dalam satu tahun.</div>
+  <div class="card">
+    <div class="row" style="margin-bottom:12px"><h2 style="margin:0">Data Diri</h2><div class="spacer"></div>
+      <button class="btn ${bisa?'':'outline'}" data-act="pEdit">Edit</button></div>
+    <table><tbody>
+      ${[['NIK / No.KK',p.nik],['Nama Lengkap',p.nama],['Tempat, Tanggal Lahir',p.ttl],['Alamat',p.alamat],['Jenis Kelamin',p.jk],['Kontak Darurat',p.kontak]].map(([k,v])=>`<tr><th style="width:240px">${k}</th><td>${esc(v)}</td></tr>`).join('')}
+      <tr><th>Terakhir diubah</th><td>${esc(p.lastEdit)}</td></tr>
+    </tbody></table>
+  </div>`;
+}
+function pEditForm(){
+  const p=S.pasien;
+  modal('Edit Data Diri', `<form data-form="profil" id="fProfil">
+    <label>Nama Lengkap</label><input name="nama" value="${esc(p.nama)}">
+    <label>Alamat</label><input name="alamat" value="${esc(p.alamat)}">
+    <label>Kontak Darurat</label><input name="kontak" value="${esc(p.kontak)}">
+    <div class="row" style="justify-content:flex-end"><button class="btn outline" type="button" data-act="close">Batal</button><button class="btn" type="submit">Simpan</button></div>
+  </form>`, '');
+}
+
+/* ============ DOKTER ============ */
+function dJadwal(){
+  const mine = S.slots.filter(s=>s.dokter==='dr. Andi Pratama');
+  const pasienHariIni = S.reservasi.filter(r=>r.status==='Aktif').length;
+  return `<h1>Jadwal Saya</h1><div class="sub">dr. Andi Pratama - Poli Umum. Perubahan slot langsung tampil di dasbor pasien.</div>
+  <div class="grid3">
+    <div class="stat"><span class="muted">Slot praktek</span><b>${mine.length}</b></div>
+    <div class="stat"><span class="muted">Pasien terdaftar</span><b>${pasienHariIni}</b></div>
+    <div class="stat"><span class="muted">Antrean hari ini</span><b>${S.antrean.length}</b></div>
+  </div>
+  <div class="card">
+    <div class="row" style="margin-bottom:8px"><h2 style="margin:0">Daftar Slot Praktek</h2><div class="spacer"></div><button class="btn" data-act="dTambah">+ Tambah Slot</button></div>
+    <table><thead><tr><th>Tanggal</th><th>Jam</th><th>Kuota</th><th>Terisi</th><th>Aksi</th></tr></thead><tbody>
+    ${mine.map(s=>`<tr><td>${tgl(s.tgl)}</td><td>${esc(s.jam)}</td><td>${s.kuota}</td><td>${s.terisi}</td>
+      <td><button class="btn light sm" data-act="dUbah" data-arg="${s.id}">Ubah</button> <button class="btn danger sm" data-act="dHapus" data-arg="${s.id}">Hapus</button></td></tr>`).join('')}
+    </tbody></table>
+  </div>
+  <div class="card"><h2>Pasien Terdaftar Hari Ini</h2>
+    <table><thead><tr><th>No. Antrean</th><th>Nama</th><th>Status</th></tr></thead><tbody>
+    ${S.reservasi.filter(r=>r.status==='Aktif').map(r=>`<tr><td>${esc(r.antrean)}</td><td>${esc(S.pasien.nama)}</td><td><span class="badge warn">Menunggu</span></td></tr>`).join('') || '<tr><td colspan="3" class="muted">Belum ada pasien.</td></tr>'}
+    </tbody></table></div>`;
+}
+function dSlotForm(s){
+  const v = s || { tgl:'2026-11-05', jam:'08:00 - 09:00', kuota:2 };
+  modal(s?'Ubah Slot Praktek':'Tambah Slot Praktek', `<form data-form="slot" data-id="${s?s.id:''}">
+    <label>Tanggal</label><input type="date" name="tgl" value="${v.tgl}" required>
+    <label>Jam (contoh: 08:00 - 09:00)</label><input name="jam" value="${esc(v.jam)}" required>
+    <label>Kuota Pasien</label><input type="number" min="1" name="kuota" value="${v.kuota}" required>
+    <div class="row" style="justify-content:flex-end"><button class="btn outline" type="button" data-act="close">Batal</button><button class="btn" type="submit">Simpan Perubahan</button></div>
+  </form>`, '');
+}
+function dAntrean(){
+  return `<h1>Antrean Periksa</h1><div class="sub">Pasien yang sudah selesai triage dan siap diperiksa.</div>
+  <div class="card"><table><thead><tr><th>No. Antrean</th><th>Nama</th><th>Poli</th><th>Status</th><th>Aksi</th></tr></thead><tbody>
+  ${S.antrean.map(a=>`<tr><td>${esc(a.id)}</td><td>${esc(a.nama)}</td><td>${esc(a.poli)}</td>
+    <td>${a.vitals?'<span class="badge">Siap Periksa</span>':'<span class="badge warn">Menunggu Triage</span>'}</td>
+    <td>${a.vitals?`<button class="btn sm" data-act="go" data-arg="#/dokter/riwayat/${a.pasienId}/${a.id}">Buka Riwayat Medis</button>`:'<span class="muted">-</span>'}</td></tr>`).join('')}
+  </tbody></table></div>`;
+}
+function dRiwayat(pid, aid){
+  const p = patientById(pid); const a = S.antrean.find(x=>x.id===aid); const rm = S.rm[pid]||{riwayat:[],alergi:'-'};
+  const baru = !rm.riwayat.length;
+  return `<h1>Riwayat Medis</h1><div class="sub">${esc(p.nama)} - ${esc(aid)}</div>
+  <div class="grid2">
+    <div class="card"><h2>Data Pasien</h2><table><tbody>
+      <tr><th>NIK</th><td>${esc(p.nik)}</td></tr><tr><th>Tgl Lahir</th><td>${esc(p.ttl)}</td></tr>
+      <tr><th>Alergi</th><td>${esc(rm.alergi)}</td></tr></tbody></table></div>
+    <div class="card"><h2>Observasi Triage Hari Ini</h2>
+      ${a.vitals?`<table><tbody><tr><th>Tekanan Darah</th><td>${esc(a.vitals.td)} mmHg</td></tr><tr><th>Suhu</th><td>${esc(a.vitals.suhu)} &deg;C</td></tr><tr><th>Berat Badan</th><td>${esc(a.vitals.bb)} kg</td></tr></tbody></table>`:'<div class="muted">Belum ada data.</div>'}
+    </div>
+  </div>
+  <div class="card"><h2>Riwayat Penyakit</h2>
+    ${baru?'<div class="alert">Pasien baru, riwayat penyakit: <b>Nihil</b>.</div>':`<ul>${rm.riwayat.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`}
+  </div>
+  <div class="row"><button class="btn outline" data-act="go" data-arg="#/dokter/antrean">Kembali</button><div class="spacer"></div><button class="btn" data-act="go" data-arg="#/dokter/diagnosis/${pid}/${aid}">Lanjut ke Form Diagnosis</button></div>`;
+}
+function dDiagnosis(pid, aid){
+  const p=patientById(pid);
+  return `<h1>Form Diagnosis</h1><div class="sub">Pemeriksaan klinis: ${esc(p.nama)} (${esc(aid)})</div>
+  <div class="card"><div class="grid2"><div><label>Nama Pasien</label><input value="${esc(p.nama)}" disabled></div><div><label>NIK</label><input value="${esc(p.nik)}" disabled></div></div></div>
+  <div class="card"><form data-form="diag" data-pid="${pid}" data-aid="${aid}">
+    <label>Diagnosis Baru <span style="color:var(--red)">*</span></label><input name="diagnosis" placeholder="Contoh: Hipertensi stadium 1">
+    <label>Rencana Tindakan</label><textarea name="rencana" placeholder="Contoh: Amlodipine 5 mg, kontrol 2 minggu"></textarea>
+    <label>E-Resep (opsional, dikirim ke apoteker)</label><textarea name="resep" placeholder="Nama obat, dosis, jumlah, aturan pakai"></textarea>
+    <div class="row" style="justify-content:flex-end"><button class="btn outline" type="button" data-act="go" data-arg="#/dokter/antrean">Batal</button><button class="btn" type="submit">Simpan Diagnosis</button></div>
+  </form></div>`;
+}
+
+/* ============ PERAWAT ============ */
+let editVitalId = null;
+function pTriage(){
+  return `<h1>Antrean Triage</h1><div class="sub">Pilih pasien untuk mencatat tanda-tanda vital.</div>
+  <div class="card"><table><thead><tr><th>No. Antrean</th><th>Nama</th><th>Poli</th><th>Status</th><th>Aksi</th></tr></thead><tbody>
+  ${S.antrean.map(a=>`<tr><td>${esc(a.id)}</td><td>${esc(a.nama)}</td><td>${esc(a.poli)}</td>
+    <td>${a.vitals?'<span class="badge">Tersimpan</span>':'<span class="badge warn">Menunggu Triage</span>'}</td>
+    <td>${a.vitals?`<button class="btn light sm" data-act="tEdit" data-arg="${a.id}">Edit</button>`:`<button class="btn sm" data-act="tPilih" data-arg="${a.id}">Pilih</button>`}</td></tr>`).join('')}
+  </tbody></table></div>
+  <div id="formTriage"></div>`;
+}
+function tForm(aid){
+  const a=S.antrean.find(x=>x.id===aid); const v=a.vitals||{td:'',suhu:'',bb:''};
+  return `<div class="card"><h2>Form Observasi - ${esc(a.nama)} (${esc(aid)})</h2>
+  <form data-form="triage" data-aid="${aid}" novalidate>
+    <div class="grid3">
+      <div><label>Tekanan Darah (mmHg)</label><input name="td" value="${esc(v.td)}" placeholder="120/80"></div>
+      <div><label>Suhu (&deg;C)</label><input name="suhu" value="${esc(v.suhu)}" placeholder="36.5"></div>
+      <div><label>Berat Badan (kg)</label><input name="bb" value="${esc(v.bb)}" placeholder="60"></div>
+    </div>
+    <div id="tErr"></div>
+    <div class="row" style="justify-content:flex-end"><button class="btn outline" type="button" data-act="tBatal">Batal</button><button class="btn" type="submit">${a.vitals?'Perbarui':'Simpan'}</button></div>
+  </form></div>`;
+}
+
+/* ============ APOTEKER ============ */
+function aList(){
+  return `<h1>E-Resep Masuk</h1><div class="sub">Notifikasi e-resep baru dari dokter.</div>
+  <div class="card"><table><thead><tr><th>ID</th><th>Pasien</th><th>Dokter</th><th>Status</th><th>Aksi</th></tr></thead><tbody>
+  ${S.eresep.map(e=>`<tr><td>${e.id}</td><td>${esc(e.nama)}</td><td>${esc(e.dokter)}</td>
+   <td>${e.status==='Baru'?'<span class="badge warn">Baru</span>':e.status==='Diproses'?'<span class="badge gray">Diproses</span>':e.status==='Perlu Perbaikan'?'<span class="badge err">Perlu Perbaikan</span>':'<span class="badge">Selesai</span>'}</td>
+   <td><button class="btn sm" data-act="go" data-arg="#/apoteker/resep/${e.id}">Buka</button></td></tr>`).join('')}
+  </tbody></table></div>`;
+}
+function aDetail(id){
+  const e=S.eresep.find(x=>x.id===id); if(!e) return '<div class="card">Tidak ditemukan.</div>';
+  const o=e.obat[0];
+  const stokOk = o.stok>=o.jumlah;
+  return `<h1>Detail E-Resep ${e.id}</h1><div class="sub">Pasien: ${esc(e.nama)} | Dokter: ${esc(e.dokter)}</div>
+  ${!e.lengkap?`<div class="alert err">Informasi e-resep tidak lengkap (dosis kosong). Resep dikembalikan ke dokter untuk diperbaiki.</div>`:''}
+  ${e.lengkap && !stokOk?`<div class="alert warn">Stok obat tidak mencukupi. Sistem menampilkan informasi bahwa obat tidak tersedia.</div>`:''}
+  <div class="card"><table><thead><tr><th>Nama Obat</th><th>Dosis</th><th>Jumlah</th><th>Aturan Pakai</th><th>Stok</th></tr></thead><tbody>
+   <tr><td>${esc(o.nama)}</td><td>${esc(o.dosis)||'<span style="color:var(--red)">kosong</span>'}</td><td>${o.jumlah}</td><td>${esc(o.aturan)}</td><td>${o.stok}</td></tr></tbody></table></div>
+  <div class="card">
+    ${e.status==='Baru' ? `<div class="row"><button class="btn light" data-act="aTerima" data-arg="${e.id}">Terima & Periksa</button>
+      ${e.lengkap?'':`<button class="btn danger" data-act="aKembali" data-arg="${e.id}">Kembalikan ke Dokter</button>`}</div>`
+    : e.status==='Diproses' ? `<div class="row"><label style="margin:0"><input type="checkbox" id="chkRacik" style="width:auto;margin-right:6px"> Obat sudah disiapkan & sesuai e-resep</label><div class="spacer"></div>
+      <button class="btn" data-act="aSelesaiRacik" data-arg="${e.id}" ${stokOk?'':'disabled'}>Klik Selesai (Peracikan)</button></div>`
+    : e.status==='Siap Diambil' ? `<div class="row"><label style="margin:0"><input type="checkbox" id="chkId" style="width:auto;margin-right:6px"> Identitas pasien diverifikasi</label><div class="spacer"></div>
+      <button class="btn" data-act="aSerahkan" data-arg="${e.id}">Serahkan Obat & Beri Info Aturan Pakai</button></div>`
+    : '<div class="muted">Resep sudah selesai.</div>'}
+  </div>
+  <button class="btn outline" data-act="go" data-arg="#/apoteker">Kembali ke daftar</button>`;
+}
+
+/* ============ ROUTER ============ */
+function route(){
+  const raw = location.hash.replace(/^#/,'') || '/login';
+  const [pathPart, query=''] = raw.split('?');
+  const seg = pathPart.split('/').filter(Boolean);
+  if(!S.role){
+    if(seg[0]==='register') return renderRegister();
+    return renderLogin();
+  }
+  if(seg[0]==='login'||!seg[0]){ return go(ROLE_HOME[S.role]); }
+  const role = seg[0];
+  if(role==='pasien'){
+    const sub=seg[1]||'beranda';
+    if(S.role!=='pasien') return go(ROLE_HOME[S.role]);
+    const map={beranda:['#/pasien',pBeranda()],jadwal:['#/pasien/jadwal',pPenjadwalan()],riwayat:['#/pasien/riwayat',pRiwayat(query.includes('tab=riwayat')?'riwayat':'aktif')],profil:['#/pasien/profil',pProfil()]};
+    const m=map[sub]||map.beranda; return shell('pasien',m[0],m[1]);
+  }
+  if(role==='dokter'){
+    if(S.role!=='dokter') return go(ROLE_HOME[S.role]);
+    if(seg[1]==='riwayat') return shell('dokter','#/dokter/antrean',dRiwayat(seg[2],seg[3]));
+    if(seg[1]==='diagnosis') return shell('dokter','#/dokter/antrean',dDiagnosis(seg[2],seg[3]));
+    if(seg[1]==='antrean') return shell('dokter','#/dokter/antrean',dAntrean());
+    return shell('dokter','#/dokter',dJadwal());
+  }
+  if(role==='perawat'){
+    if(S.role!=='perawat') return go(ROLE_HOME[S.role]);
+    return shell('perawat','#/perawat',pTriage());
+  }
+  if(role==='apoteker'){
+    if(S.role!=='apoteker') return go(ROLE_HOME[S.role]);
+    if(seg[1]==='resep') return shell('apoteker','#/apoteker',aDetail(seg[2]));
+    return shell('apoteker','#/apoteker',aList());
+  }
+  return renderLogin();
+}
+window.addEventListener('hashchange', ()=>{ closeModal(); route(); });
+
+/* ============ ACTIONS ============ */
+const A = {
+  close: ()=>closeModal(),
+  go: h=>{ closeModal(); go(h); },
+  toLogin: ()=>go('#/login'),
+  logout: ()=>{ S.role=null; go('#/login'); },
+  pPoli: p=>{ pJadwal.poli=p; pJadwal.slot=null; route(); },
+  pSlot: id=>{ pJadwal.slot=id; route(); },
+  pBooking: ()=>{
+    const s=slotById(pJadwal.slot);
+    if(!s) return;
+    if(s.terisi>=s.kuota){ modal('Kuota Slot Penuh','<p>Slot jam yang dipilih sudah penuh. Silakan pilih slot jam atau hari lain.</p>','<button class="btn" data-act="close">OK</button>'); pJadwal.slot=null; route(); return; }
+    const tiket=nextTicket(); s.terisi++;
+    const rid='R'+(S.reservasi.length+1);
+    S.reservasi.push({id:rid,pasienId:S.pasien.id,slotId:s.id,status:'Aktif',antrean:tiket});
+    pJadwal.slot=null;
+    modal('Berhasil Booking', `<p>Janji temu Anda berhasil dibuat.</p><div class="ticket"><div class="muted">Tiket Antrean Poli</div><div class="no">${tiket}</div><div>${esc(s.poli)} - ${esc(s.dokter)}<br>${tgl(s.tgl)}, ${esc(s.jam)}</div></div>`,
+      '<button class="btn" data-act="go" data-arg="#/pasien/riwayat">Lihat Jadwal Saya</button>');
+    route();
+  },
+  rUbah: id=>{
+    const r=S.reservasi.find(x=>x.id===id); const cur=slotById(r.slotId);
+    const opts=S.slots.filter(s=>s.id!==cur.id && s.terisi<s.kuota).map(s=>`<option value="${s.id}">${esc(s.poli)} - ${esc(s.dokter)}, ${tgl(s.tgl)}, ${esc(s.jam)} (sisa ${s.kuota-s.terisi})</option>`).join('');
+    modal('Ubah Jadwal', `<p>Pilih jadwal baru. Slot lama akan dikembalikan ke dasbor ketersediaan.</p>
+      <select id="newSlot">${opts||'<option value="">Tidak ada slot tersedia</option>'}</select>`,
+      `<button class="btn outline" data-act="close">Batal</button><button class="btn" data-act="rUbahOk" data-arg="${id}">Konfirmasi Ubah</button>`);
+  },
+  rUbahOk: id=>{
+    const ns=$('#newSlot').value; if(!ns) return;
+    const r=S.reservasi.find(x=>x.id===id); const old=slotById(r.slotId); const nw=slotById(ns);
+    if(nw.terisi>=nw.kuota){ toast('Kuota penuh, pilih slot lain',true); return; }
+    old.terisi--; nw.terisi++; r.slotId=ns;
+    closeModal(); toast('Jadwal Berhasil Diperbarui'); route();
+  },
+  rBatal: id=>{
+    modal('Batalkan Reservasi?', '<p>Reservasi akan dibatalkan dan slot jam dikembalikan ke dasbor ketersediaan.</p>',
+      `<button class="btn outline" data-act="close">Tidak</button><button class="btn danger" data-act="rBatalOk" data-arg="${id}">Konfirmasi Batal</button>`);
+  },
+  rBatalOk: id=>{
+    const r=S.reservasi.find(x=>x.id===id); const s=slotById(r.slotId);
+    s.terisi--; r.status='Dibatalkan'; closeModal(); toast('Jadwal Berhasil Dibatalkan'); route();
+  },
+  pEdit: ()=>{
+    const days=daysBetween(S.pasien.lastEdit,TODAY);
+    if(days<365){
+      modal('Tidak bisa merubah data sekarang', `<div class="alert err">Anda telah mengedit data kurang dari 1 tahun (terakhir: ${esc(S.pasien.lastEdit)}).</div><p class="muted">Perubahan data hanya bisa dilakukan setelah 1 tahun sejak perubahan terakhir.</p>`,'<button class="btn" data-act="close">Tutup</button>');
+      return;
+    }
+    pEditForm();
+  },
+  dTambah: ()=>dSlotForm(null),
+  dUbah: id=>dSlotForm(slotById(id)),
+  dHapus: id=>{
+    const s=slotById(id); const ada = s.terisi>0;
+    if(ada){
+      modal('Konfirmasi Hapus Slot', `<div class="alert warn">Sudah ada pasien terdaftar pada slot ini. Pasien akan mendapat notifikasi pembatalan.</div><p>Slot ${tgl(s.tgl)}, ${esc(s.jam)} akan disembunyikan dari dasbor pendaftaran.</p>`,
+        `<button class="btn outline" data-act="close">Batal</button><button class="btn danger" data-act="dHapusOk" data-arg="${id}">Hapus & Tawarkan Pendaftaran Ulang</button>`);
+    } else {
+      modal('Konfirmasi Hapus Slot', `<p>Slot ${tgl(s.tgl)}, ${esc(s.jam)} akan dihapus dari dasbor pasien.</p>`,
+        `<button class="btn outline" data-act="close">Batal</button><button class="btn danger" data-act="dHapusOk" data-arg="${id}">Hapus Slot</button>`);
+    }
+  },
+  dHapusOk: id=>{
+    S.slots=S.slots.filter(s=>s.id!==id); closeModal(); toast('Jadwal Berhasil Dihapus'); route();
+  },
+  tPilih: id=>{ editVitalId=id; route(); $('#formTriage').innerHTML=tForm(id); },
+  tEdit: id=>{ editVitalId=id; route(); $('#formTriage').innerHTML=tForm(id); },
+  tBatal: ()=>{ editVitalId=null; $('#formTriage').innerHTML=''; },
+  aTerima: id=>{ const e=S.eresep.find(x=>x.id===id); e.status='Diproses'; toast('E-resep diterima'); route(); },
+  aKembali: id=>{ const e=S.eresep.find(x=>x.id===id); e.status='Perlu Perbaikan'; toast('E-resep dikembalikan ke dokter'); route(); },
+  aSelesaiRacik: id=>{
+    const chk=$('#chkRacik'); if(!chk||!chk.checked){ toast('Centang konfirmasi terlebih dahulu',true); return; }
+    const e=S.eresep.find(x=>x.id===id); e.status='Siap Diambil'; e.obat[0].stok-=e.obat[0].jumlah;
+    toast('Status e-resep: siap diambil'); route();
+  },
+  aSerahkan: id=>{
+    const chk=$('#chkId'); if(!chk||!chk.checked){ toast('Verifikasi identitas pasien dahulu',true); return; }
+    const e=S.eresep.find(x=>x.id===id); e.status='Selesai';
+    modal('Pengiriman Obat Selesai', `<p>Obat diserahkan kepada ${esc(e.nama)}. Informasi aturan pakai: <b>${esc(e.obat[0].aturan)}</b>.</p>`, '<button class="btn" data-act="go" data-arg="#/apoteker">OK</button>');
+  },
+  close2: ()=>closeModal()
+};
+document.addEventListener('click', e=>{
+  const el=e.target.closest('[data-act]'); if(!el) return;
+  const fn=A[el.dataset.act]; if(fn){ e.preventDefault(); fn(el.dataset.arg); }
+});
+
+/* ============ FORMS ============ */
+const F = {
+  login(f){
+    const d=Object.fromEntries(new FormData(f));
+    const err=$('#loginErr');
+    if(!d.nik||!d.pw){ err.innerHTML='<div class="alert err">NIK dan password wajib diisi.</div>'; return; }
+    if(d.pw!==d.pw2){ err.innerHTML='<div class="alert err">Konfirmasi password tidak sesuai.</div>'; return; }
+    S.role=d.role; S.nik=d.nik; toast('Login berhasil sebagai '+ROLE_NAME[d.role]); go(ROLE_HOME[d.role]); route();
+  },
+  register(f){
+    const d=Object.fromEntries(new FormData(f));
+    if(S.registeredNik.includes(d.nik)){
+      modal('Sudah Pernah Registrasi', '<div class="alert err">NIK/No.KK sudah terdaftar di sistem.</div><p>Silakan login menggunakan akun Anda.</p>', '<button class="btn" data-act="go" data-arg="#/login">OK</button>');
+      return;
+    }
+    S.registeredNik.push(d.nik);
+    S.pasien={id:'P1',nama:d.nama,nik:d.nik,ttl:d.tempat+', '+d.tgl,alamat:d.alamat,jk:d.jk,kontak:d.kontak,lastEdit:TODAY};
+    modal('Berhasil Registrasi', '<p>Akun pasien berhasil dibuat. Silakan login.</p>', '<button class="btn" data-act="go" data-arg="#/login">OK</button>');
+  },
+  profil(f){
+    const d=Object.fromEntries(new FormData(f));
+    Object.assign(S.pasien,{nama:d.nama,alamat:d.alamat,kontak:d.kontak,lastEdit:TODAY});
+    closeModal(); toast('Data berhasil diperbarui, data lama ditimpa'); route();
+  },
+  slot(f){
+    const d=Object.fromEntries(new FormData(f));
+    if(f.dataset.id){ const s=slotById(f.dataset.id); Object.assign(s,{tgl:d.tgl,jam:d.jam,kuota:+d.kuota}); toast('Jadwal Berhasil Diperbarui'); }
+    else { S.slots.push({id:'J'+(S.slots.length+1),poli:'Poli Umum',dokter:'dr. Andi Pratama',tgl:d.tgl,jam:d.jam,kuota:+d.kuota,terisi:0}); toast('Jadwal Berhasil Ditambahkan'); }
+    closeModal(); route();
+  },
+  triage(f){
+    const d=Object.fromEntries(new FormData(f)); const a=S.antrean.find(x=>x.id===f.dataset.aid);
+    const errs=[];
+    if(!d.td||!d.suhu||!d.bb) errs.push('Kolom wajib (tekanan darah, suhu, berat badan) belum terisi.');
+    if(d.td && !/^\d{2,3}\/\d{2,3}$/.test(d.td)) errs.push('Format tekanan darah harus seperti 120/80.');
+    if(d.suhu && isNaN(parseFloat(d.suhu))) errs.push('Suhu harus berupa angka.');
+    if(d.bb && isNaN(parseFloat(d.bb))) errs.push('Berat badan harus berupa angka.');
+    if(errs.length){ $('#tErr').innerHTML='<div class="alert err">'+errs.map(esc).join('<br>')+'</div>'; return; }
+    const isEdit=!!a.vitals;
+    a.vitals={td:d.td,suhu:d.suhu,bb:d.bb}; a.status='Siap Periksa';
+    if(isEdit) modal('Pembaruan Berhasil','<p>Data observasi lama telah ditimpa dengan data baru.</p>','<button class="btn" data-act="close">OK</button>');
+    else modal('Berhasil Disimpan','<p>Data observasi berhasil disimpan ke RME dan siap ditinjau dokter.</p>','<button class="btn" data-act="close">OK</button>');
+    editVitalId=null; route();
+  },
+  diag(f){
+    const d=Object.fromEntries(new FormData(f));
+    if(!d.diagnosis||!d.diagnosis.trim()){
+      modal('Kolom Wajib Belum Terisi','<div class="alert err">Diagnosis wajib diisi sebelum disimpan.</div>','<button class="btn" data-act="close">X</button>'); return;
+    }
+    const pid=f.dataset.pid, aid=f.dataset.aid;
+    S.diag[aid]={diagnosis:d.diagnosis,rencana:d.rencana};
+    const rm=S.rm[pid]||(S.rm[pid]={riwayat:[],alergi:'-'}); rm.riwayat.push(d.diagnosis);
+    const a=S.antrean.find(x=>x.id===aid); if(a) a.status='Selesai';
+    if(d.resep&&d.resep.trim()){
+      const id='ER-'+String(S.eresep.length+1).padStart(3,'0');
+      S.eresep.push({id,pasienId:pid,nama:patientById(pid).nama,dokter:'dr. Andi Pratama',status:'Baru',lengkap:true,obat:[{nama:d.resep.trim(),dosis:'-',jumlah:1,aturan:'-',stok:10}]});
+      toast('E-resep terkirim ke apoteker');
+    }
+    modal('Pemeriksaan Selesai','<p>Diagnosis tersimpan dan status pemeriksaan menjadi Selesai.</p>','<button class="btn" data-act="go" data-arg="#/dokter/antrean">OK</button>');
+  }
+};
+document.addEventListener('submit', e=>{
+  const f=e.target; if(!f.dataset.form) return; e.preventDefault();
+  if(f.dataset.form==='profil'){ F.profil(f); return; }
+  if(f.dataset.form==='triage'){ F.triage(f); return; }
+  F[f.dataset.form] && F[f.dataset.form](f);
+});
+
+route();
+</script>
+</body>
+</html>
