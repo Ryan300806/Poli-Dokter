@@ -10,14 +10,14 @@ Format mengikuti Modul 3. Centang kolom Validasi (ubah `[ ]` menjadi `[x]`) hany
 | 4 | UI-004 | MF-IM-004 | Profile Pasien | `resources/js/Pages/Pasien/Profil.jsx` | MF | [ ] |
 | 5 | UI-005 | MF-IM-005 | Edit Data Pasien (Pop-up) | `resources/js/Components/Pasien/EditDataModal.jsx` | MF | [ ] |
 | 6 | UI-006 | MF-IM-006 | Triage Perawat | `resources/js/Pages/Perawat/Triage.jsx` | MF | [ ] |
-| 7 | UI-007 | KH-IM-001 | Penjadwalan Poli | `resources/js/Pages/Pasien/PenjadwalanPoli.jsx` | KH | [ ] |
+| 7 | UI-007 | KH-IM-001 | Penjadwalan Poli | `resources/js/Pages/Pasien/PenjadwalanPoli.jsx` | KH | [x] |
 | 8 | UI-008 | KH-IM-002 | Riwayat Reservasi / Tiket Antrean | `resources/js/Pages/Pasien/RiwayatReservasi.jsx` | KH | [ ] |
 | 9 | UI-009 | KH-IM-003 | Jadwal Saya Dokter (termasuk pop-up Tambah Slot) | `resources/js/Pages/Dokter/JadwalSaya.jsx` | KH | [ ] |
 | 10 | UI-010 | KH-IM-004 | Dasbor Pasien (Beranda) | `resources/js/Pages/Pasien/DasborPasien.jsx` | KH | [ ] |
 | 11 | UI-011 | KH-IM-005 | Form Diagnosis | `resources/js/Pages/Dokter/FormDiagnosis.jsx` | KH | [ ] |
 | 12 | UI-012 | MH-IM-001 | Jadwal Saya Pasien (termasuk form ubah jadwal) | `resources/js/Pages/Pasien/JadwalSaya.jsx` | MH | [ ] |
 | 13 | UI-013 | MH-IM-002 | Pop-up Konfirmasi Ubah Slot Dokter | `resources/js/Components/Dokter/UbahSlotModal.jsx` | MH | [ ] |
-| 14 | UI-014 | MH-IM-003 | Antrean Periksa | `resources/js/Pages/Dokter/AntreanPeriksa.jsx` | MH | [x] |
+| 14 | UI-014 | MH-IM-003 | Antrean Periksa | `resources/js/Pages/Dokter/AntreanPeriksa.jsx` | MH | [] |
 | 15 | UI-015 | MH-IM-004 | Riwayat Medis / Dasbor | `resources/js/Pages/Dokter/RiwayatMedis.jsx` | MH | [ ] |
 | 16 | UI-016 | MH-IM-005 | Antrean Triage | `resources/js/Pages/Perawat/AntreanTriage.jsx` | MH | [ ] |
 | 17 | UI-017 | MH-IM-006 | Form Observasi (TD, Suhu, BB) | `resources/js/Pages/Perawat/FormObservasi.jsx` | MH | [ ] |
