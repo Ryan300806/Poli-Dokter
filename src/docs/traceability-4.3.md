@@ -7,7 +7,7 @@ Format mengikuti Modul 3. Centang kolom Validasi (ubah `[ ]` menjadi `[x]`) hany
 | 1 | UI-001 | MF-IM-001 | Registrasi Pasien Baru | `resources/js/Pages/Auth/Registrasi.jsx` | MF | [ ] |
 | 2 | UI-002 | MF-IM-002 | Login | `resources/js/Pages/Auth/Login.jsx` | MF | [ ] |
 | 3 | UI-003 | MF-IM-003 | Beranda Pasien | `resources/js/Pages/Pasien/Beranda.jsx` | MF | [ ] |
-| 4 | UI-004 | MF-IM-004 | Profile Pasien | `resources/js/Pages/Pasien/Profil.jsx` | MF | [ ] |
+| 4 | UI-004 | MF-IM-004 | Profile Pasien | `resources/js/Pages/Pasien/Profil.jsx` | MF | [x] |
 | 5 | UI-005 | MF-IM-005 | Edit Data Pasien (Pop-up) | `resources/js/Components/Pasien/EditDataModal.jsx` | MF | [ ] |
 | 6 | UI-006 | MF-IM-006 | Triage Perawat | `resources/js/Pages/Perawat/Triage.jsx` | MF | [ ] |
 | 7 | UI-007 | KH-IM-001 | Penjadwalan Poli | `resources/js/Pages/Pasien/PenjadwalanPoli.jsx` | KH | [ ] |
