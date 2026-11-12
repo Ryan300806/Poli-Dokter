@@ -12,7 +12,7 @@ Format mengikuti Modul 3. Centang kolom Validasi (ubah `[ ]` menjadi `[x]`) hany
 | 6 | UI-006 | MF-IM-006 | Triage Perawat | `resources/js/Pages/Perawat/Triage.jsx` | MF | [ ] |
 | 7 | UI-007 | KH-IM-001 | Penjadwalan Poli | `resources/js/Pages/Pasien/PenjadwalanPoli.jsx` | KH | [ ] |
 | 8 | UI-008 | KH-IM-002 | Riwayat Reservasi / Tiket Antrean | `resources/js/Pages/Pasien/RiwayatReservasi.jsx` | KH | [ ] |
-| 9 | UI-009 | KH-IM-003 | Jadwal Saya Dokter (termasuk pop-up Tambah Slot) | `resources/js/Pages/Dokter/JadwalSaya.jsx` | KH | [ ] |
+| 9 | UI-009 | KH-IM-003 | Jadwal Saya Dokter (termasuk pop-up Tambah Slot) | `resources/js/Pages/Dokter/JadwalSaya.jsx` | KH | [x] |
 | 10 | UI-010 | KH-IM-004 | Dasbor Pasien (Beranda) | `resources/js/Pages/Pasien/DasborPasien.jsx` | KH | [ ] |
 | 11 | UI-011 | KH-IM-005 | Form Diagnosis | `resources/js/Pages/Dokter/FormDiagnosis.jsx` | KH | [ ] |
 | 12 | UI-012 | MH-IM-001 | Jadwal Saya Pasien (termasuk form ubah jadwal) | `resources/js/Pages/Pasien/JadwalSaya.jsx` | MH | [ ] |
