@@ -17,3 +17,10 @@ Thumbs.db
 *.sql
 *.sql.gz
 .env
+
+# Arsip sementara
+_arsip_redundansi/
+
+# Laravel compiled Blade views
+/src/storage/framework/views/*
+!/src/storage/framework/views/.gitignore
