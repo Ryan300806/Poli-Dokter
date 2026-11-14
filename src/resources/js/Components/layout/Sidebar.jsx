@@ -21,15 +21,19 @@ function Butir({ item, aktif, onKosong }) {
   return <Link href={item.href} className={kelas} aria-current={aktif ? 'page' : undefined}>{isi}</Link>;
 }
 
-export default function Sidebar({ role }) {
+export default function Sidebar({ role, compact = false }) {
   const { url } = usePage();
   const peran = PERAN[role];
   const path = url.split('?')[0];
-  const aktif = (href) => href && (path === href || path.startsWith(`${href}/`));
+  const aktif = (href) => href && (
+    path === href
+    || path.startsWith(`${href}/`)
+    || (role === 'apoteker' && path.startsWith('/apoteker/'))
+  );
   const kosong = (item) => toast.info(`Halaman "${item.label}" belum termasuk dalam 23 UI Modul 2.`);
 
   return (
-    <aside className="fixed bottom-0 left-0 top-16 z-20 flex w-64 flex-col bg-white shadow-aside">
+    <aside className={`fixed bottom-0 left-0 ${compact ? 'top-16' : 'top-[78px]'} z-20 flex w-64 flex-col bg-white shadow-aside`}>
       <nav className="flex-1 overflow-y-auto px-4 py-6" aria-label="Menu utama">
         <p className="px-4 pb-1 text-xl font-semibold uppercase tracking-[0.55px] text-ink-nav">{peran.judulMenu}</p>
         <ul className="mt-1 flex flex-col gap-1">

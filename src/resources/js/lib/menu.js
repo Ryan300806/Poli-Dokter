@@ -3,8 +3,8 @@
 // href berupa string atau fungsi tanpa argumen. Jika href kosong, menu belum punya UI di Modul 2
 // dan akan menampilkan toast "belum tersedia" saat diklik.
 import {
-  LayoutGrid, CalendarDays, Users, History, ClipboardList, FileText, Home, CalendarCheck,
-  Calendar, IdCard, BriefcaseMedical, List, BellRing, ScrollText, FlaskConical, Package, Settings,
+  LayoutGrid, CalendarDays, History, ClipboardList, FileText, Home, CalendarCheck,
+  Calendar, IdCard, BriefcaseMedical,
 } from 'lucide-react';
 import { rute } from './rute';
 
@@ -23,38 +23,30 @@ export const PERAN = {
   dokter: {
     judulMenu: 'Layanan Dokter',
     labelPeran: 'Dokter Spesialis Poli',
-    demo: { nama: 'dr. Andi Pratama, Sp.PD', peran: 'Dokter Spesialis Poli' },
+    demo: { nama: 'Ns. Siti Rahma, S.Kep', peran: 'Dokter', avatar: '/images/figma/staff-avatar.jpeg' },
     menu: [
-      { label: 'Beranda', ikon: LayoutGrid, href: null },
+      { label: 'Beranda', ikon: LayoutGrid, href: rute.dokter.antreanPeriksa },
       { label: 'Jadwal Saya', ikon: CalendarDays, href: rute.dokter.jadwalSaya },
-      { label: 'Antrean Periksa', ikon: Users, href: rute.dokter.antreanPeriksa },
       { label: 'Riwayat Medis', ikon: History, href: rute.dokter.riwayatMedis() },
       { label: 'Form Diagnosis', ikon: ClipboardList, href: rute.dokter.formDiagnosis() },
       { label: 'E-Resep', ikon: FileText, href: rute.dokter.formEResep() },
     ],
   },
   perawat: {
-    judulMenu: 'Portal Perawat',
+    judulMenu: 'Layanan Perawat',
     labelPeran: 'Perawat',
-    demo: { nama: 'Ns. Rina Marlina', peran: 'Perawat' },
+    demo: { nama: 'Ns. Siti Rahma, S.Kep', peran: 'Perawat', avatar: '/images/figma/staff-avatar.jpeg' },
     menu: [
-      { label: 'Beranda Utama', ikon: LayoutGrid, href: null },
-      { label: 'Triase Rawat Jalan', ikon: BriefcaseMedical, href: rute.perawat.antreanTriage },
-      { label: 'Daftar Pasien Poli', ikon: List, href: null },
+      { label: 'Beranda', ikon: LayoutGrid, href: rute.perawat.antreanTriage },
+      { label: 'Triase Rawat Jalan', ikon: BriefcaseMedical, href: rute.perawat.formObservasi() },
     ],
   },
   apoteker: {
     judulMenu: 'Pelayanan Rawat Jalan',
     labelPeran: 'Apoteker',
-    demo: { nama: 'Apt. Dimas Prakoso', peran: 'Apoteker' },
+    demo: { nama: 'apt. Siti Rahma, S.Farm', peran: 'Apoteker Farmasi', avatar: '/images/figma/staff-avatar.jpeg' },
     menu: [
-      { label: 'Beranda Apoteker', ikon: LayoutGrid, href: null },
-      { label: 'Notifikasi E-Resep', ikon: BellRing, href: rute.apoteker.notifikasiEResep },
-      { label: 'Daftar E-Resep', ikon: ScrollText, href: rute.apoteker.rincianEResep() },
-      { label: 'Peracikan Obat', ikon: FlaskConical, href: null },
-      { label: 'Pengiriman Obat', ikon: Package, href: rute.apoteker.pengirimanObat() },
-      { label: 'Riwayat Pengiriman', ikon: History, href: null },
+      { label: 'Beranda', ikon: LayoutGrid, href: rute.apoteker.notifikasiEResep },
     ],
-    menuSistem: [{ label: 'Pengaturan', ikon: Settings, href: null }],
   },
 };
