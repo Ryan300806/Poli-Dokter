@@ -1,293 +1,46 @@
-// MF-IM-004 | UI-004 | Profile Pasien | Penulis: MF
-// Sumber desain: Figma node 150:4826. Sumber kebutuhan: Modul 2 bagian 3.7 (UI-004).
-// Rute: GET /pasien/profil  (routes/fe/mf.php, nama rute: pasien.profil)
-import { useState } from 'react';
-import {
-  ArrowRight, BadgeCheck, Check, ClipboardList, Contact, Copy, Mail, MapPin, Phone, RefreshCw, ShieldCheck, User, UserCog,
-} from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { router } from '@inertiajs/react';
+import { BadgeCheck, CalendarDays, Contact, MapPin, Pencil, Phone, Save, ShieldCheck, UserRound, X } from 'lucide-react';
 import AppLayout from '../../Layouts/AppLayout';
 import PageHeader from '../../Components/ui/PageHeader';
-import Badge from '../../Components/ui/Badge';
 import Button from '../../Components/ui/Button';
-import { Table, Thead, Tbody, Tr, Th, Td } from '../../Components/ui/Table';
-import { toast } from '../../Components/ui/Toast';
-import EditDataModal from '../../Components/Pasien/EditDataModal';
-import { pasienContoh, riwayatKunjunganContoh } from '../../data/profilPasien';
+import { rute } from '../../lib/rute';
 
-// Kartu putih dengan kepala berlatar abu (pola yang dipakai ketiga kartu di halaman ini).
-function Kartu({ ikon: Ikon, judul, aksi, footer, children }) {
-  return (
-    <section className="overflow-hidden rounded-2xl bg-white shadow-card">
-      <header className="flex items-center justify-between gap-3 bg-surface-low px-5 py-4">
-        <h2 className="flex items-center gap-3 text-base font-semibold text-ink">
-          <Ikon className="size-5 shrink-0 text-brand" />
-          {judul}
-        </h2>
-        {aksi && <div className="flex shrink-0 items-center gap-2">{aksi}</div>}
-      </header>
-      {children}
-      {footer}
-    </section>
-  );
-}
+const formatTanggal = (value) => new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${value}T00:00:00`));
+function Field({ label, name, value, onChange, error, ...props }) { return <label className="grid gap-1.5 text-xs font-semibold text-ink-soft">{label}<input name={name} value={value ?? ''} onChange={onChange} className="h-10 rounded-lg border border-line bg-white px-3 text-sm font-normal text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20" {...props}/>{error && <span className="font-normal text-danger">{error}</span>}</label>; }
 
-// Satu baris data demografis: label di kiri, nilai di kanan.
-function BarisData({ label, children }) {
-  return (
-    <div className="flex items-center justify-between gap-4 border-b border-line/60 py-3 text-[13px] last:border-b-0">
-      <span className="text-ink-soft">{label}</span>
-      <span className="text-right font-medium text-ink">{children}</span>
-    </div>
-  );
-}
+export default function Profil({ pasien = {}, riwayat = [] }) {
+  const [edit, setEdit] = useState(false);
+  const [form, setForm] = useState({ nama_lengkap: pasien.nama_lengkap ?? '', tempat_lahir: pasien.tempat_lahir ?? '', tanggal_lahir: pasien.tanggal_lahir ?? '', alamat: pasien.alamat ?? '', jenis_kelamin: pasien.jenis_kelamin ?? 'L', kontak_darurat: pasien.kontak_darurat ?? '', nama_kontak_darurat: pasien.nama_kontak_darurat ?? '' });
+  const [errors, setErrors] = useState({});
+  useEffect(() => {
+    setForm({ nama_lengkap: pasien.nama_lengkap ?? '', tempat_lahir: pasien.tempat_lahir ?? '', tanggal_lahir: pasien.tanggal_lahir ?? '', alamat: pasien.alamat ?? '', jenis_kelamin: pasien.jenis_kelamin ?? 'L', kontak_darurat: pasien.kontak_darurat ?? '', nama_kontak_darurat: pasien.nama_kontak_darurat ?? '' });
+  }, [pasien]);
+  function change(e) { setForm({ ...form, [e.target.name]: e.target.value }); setErrors({ ...errors, [e.target.name]: undefined }); }
+  function save(e) { e.preventDefault(); router.put(rute.pasien.simpanProfil, form, { preserveScroll: true, onError: setErrors, onSuccess: () => setEdit(false) }); }
 
-// Props: data dari BE. Nilai awalnya data contoh supaya halaman tampil tanpa BE.
-export default function Profil({ pasien = pasienContoh, riwayat = riwayatKunjunganContoh }) {
-  const [modalBuka, setModalBuka] = useState(false);
-  const { asuransi, kontakDarurat } = pasien;
-
-  async function salinNik() {
-    try {
-      await navigator.clipboard.writeText(pasien.nik);
-      toast.success('NIK Berhasil Disalin');
-    } catch {
-      toast.error('NIK Gagal Disalin');
-    }
-  }
-
-  function panggilKontak() {
-    // Panggilan langsung dari aplikasi disimulasikan dengan notifikasi sampai BE/telepon tersedia.
-    toast.success(`Menghubungi ${kontakDarurat.nama}...`);
-  }
-
-  function lihatArsip() {
-    // Halaman arsip lengkap (SIM-RS) belum ada di Modul 2.
-    toast.error('Arsip rekam medis lengkap belum tersedia.');
-  }
-
-  return (
-    <AppLayout role="pasien" title="Profile Pasien">
-      <div className="flex flex-col gap-6">
-        <PageHeader
-          title="Profil Pasien Terintegrasi"
-          actions={(
-            <Button icon={UserCog} onClick={() => setModalBuka(true)}>Mutakhirkan Data Pasien</Button>
-          )}
-        >
-          <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-brand">
-            <ClipboardList className="size-3.5" />
-            Modul Data Pasien Terpusat
-            <span className="font-medium text-ink-muted">· SIM-RS v4.2</span>
-          </span>
-          <Badge tone="success" icon={BadgeCheck} className="uppercase">Status: {pasien.statusBpjs}</Badge>
-        </PageHeader>
-
-        <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-          {/* Kolom kiri: Identifikasi Rekam Medis */}
-          <Kartu
-            ikon={Contact}
-            judul="Identifikasi Rekam Medis"
-            aksi={(
-              <>
-                <Badge tone="neutral" className="rounded-md">{pasien.noRm}</Badge>
-                <Badge tone="success" className="uppercase">{pasien.statusRekam}</Badge>
-              </>
-            )}
-            footer={(
-              <p className="flex items-center gap-2 bg-surface-low px-5 py-3 text-[11px] font-medium text-ink-soft">
-                <RefreshCw className="size-3.5 text-brand" />
-                Sinkronisasi Dukcapil &amp; BPJS: {pasien.sinkronisasi}
-              </p>
-            )}
-          >
-            <div className="flex flex-col gap-4 p-5">
-              {/* Foto, nama, NIK, No. KK */}
-              <div className="flex gap-4 rounded-xl bg-surface-low p-4">
-                <div className="flex shrink-0 flex-col items-center gap-1.5">
-                  <span className="flex size-20 items-center justify-center rounded-xl bg-surface-mid text-ink-muted">
-                    <User className="size-8" />
-                  </span>
-                  <span className="text-[10px] font-medium text-ink-muted">ID: {pasien.idPasien}</span>
-                </div>
-                <div className="flex min-w-0 flex-1 flex-col gap-2">
-                  <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-ink-muted">Nama Lengkap Pasien</p>
-                    <p className="text-xl font-bold leading-7 text-ink">{pasien.nama}</p>
-                  </div>
-                  <div className="flex items-center justify-between gap-2 rounded-lg bg-white px-3 py-1.5 text-[13px]">
-                    <span className="text-[10px] font-medium text-ink-muted">NIK:</span>
-                    <span className="flex items-center gap-1.5 font-semibold tracking-wide text-ink">
-                      {pasien.nik}
-                      <button
-                        type="button"
-                        onClick={salinNik}
-                        aria-label="Salin NIK"
-                        className="rounded p-0.5 text-ink-soft hover:text-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40"
-                      >
-                        <Copy className="size-3.5" />
-                      </button>
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between gap-2 rounded-lg bg-white px-3 py-1.5 text-[13px]">
-                    <span className="text-[10px] font-medium text-ink-muted">No. KK:</span>
-                    <span className="font-semibold tracking-wide text-ink">{pasien.noKk}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Data demografis */}
-              <div>
-                <BarisData label="Tempat / Tgl Lahir">
-                  {pasien.tempatLahir}, {pasien.tanggalLahir} ({pasien.usia})
-                </BarisData>
-                <BarisData label="Jenis Kelamin">{pasien.jenisKelamin}</BarisData>
-                <BarisData label="Golongan Darah">
-                  <Badge tone="danger" className="rounded-md">{pasien.golonganDarah}</Badge>
-                </BarisData>
-                <BarisData label="Agama">{pasien.agama}</BarisData>
-                <BarisData label="Pekerjaan">{pasien.pekerjaan}</BarisData>
-                <BarisData label="Status Pernikahan">{pasien.statusPernikahan}</BarisData>
-              </div>
-
-              {/* Kepesertaan asuransi */}
-              <div className="flex flex-col gap-2">
-                <p className="text-[13px] text-ink-soft">Kepesertaan Asuransi &amp; Jaminan</p>
-                <div className="flex items-center justify-between gap-3 rounded-lg bg-surface-low px-3 py-2.5 text-[13px] font-medium text-ink">
-                  <span className="flex items-center gap-2">
-                    <ShieldCheck className="size-4 text-brand" />
-                    {asuransi.jenis} - {asuransi.kelas}
-                  </span>
-                  <span className="rounded bg-white px-2 py-0.5 text-[10px] font-semibold text-ink-soft">{asuransi.skema}</span>
-                </div>
-              </div>
-            </div>
-          </Kartu>
-
-          {/* Kolom kanan: Domisili & Kontak + Riwayat Kunjungan */}
-          <div className="flex flex-col gap-6">
-            <Kartu
-              ikon={MapPin}
-              judul="Domisili & Kontak Pasien"
-              aksi={<Badge tone="success" icon={BadgeCheck} className="uppercase">Data Terverifikasi</Badge>}
-            >
-              <div className="flex flex-col gap-4 p-5">
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-wide text-ink-muted">
-                    <span>Alamat Lengkap KTP &amp; Tinggal</span>
-                    <span className="inline-flex items-center gap-1 normal-case text-brand">
-                      <Check className="size-3" strokeWidth={3} />
-                      Sesuai KTP
-                    </span>
-                  </div>
-                  <p className="rounded-xl bg-surface-low p-4 text-lg leading-7 text-ink">{pasien.alamat}</p>
-                </div>
-
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <div className="rounded-xl bg-surface-low px-4 py-3">
-                    <p className="text-[10px] font-medium text-ink-muted">Nomor Telepon / WhatsApp</p>
-                    <div className="mt-1 flex items-center justify-between gap-2 text-[13px] font-medium text-ink">
-                      {pasien.telepon}
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-brand">
-                        <ShieldCheck className="size-3.5" />
-                        OTP
-                      </span>
-                    </div>
-                  </div>
-                  <div className="rounded-xl bg-surface-low px-4 py-3">
-                    <p className="text-[10px] font-medium text-ink-muted">Alamat Surat Elektronik (Email)</p>
-                    <div className="mt-1 flex items-center justify-between gap-2 text-[13px] font-medium text-ink">
-                      <span className="min-w-0 truncate">{pasien.email}</span>
-                      <Mail className="size-4 shrink-0 text-ink-muted" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Kontak darurat */}
-                <div className="flex flex-wrap items-center gap-4 rounded-xl bg-surface-low p-4">
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-surface-mid text-brand">
-                    <span className="text-xl font-bold leading-none">*</span>
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-ink-muted">
-                      Kontak Darurat (Emergency Contact)
-                    </p>
-                    <p className="text-base font-bold text-ink">{kontakDarurat.nama}</p>
-                    <p className="text-[11px] text-ink-soft">
-                      Hubungan: {kontakDarurat.hubungan} • {kontakDarurat.telepon}
-                    </p>
-                  </div>
-                  <Button variant="secondary" icon={Phone} onClick={panggilKontak} className="bg-brand-light text-brand">
-                    Panggil Kontak
-                  </Button>
-                </div>
-              </div>
-            </Kartu>
-
-            <Kartu
-              ikon={ClipboardList}
-              judul="Riwayat Kunjungan Poliklinik"
-              aksi={(
-                <span className="rounded-full bg-surface-mid px-3 py-1.5 text-[10px] font-semibold text-ink-soft">
-                  Total: {riwayat.total} Kunjungan Terdaftar
-                </span>
-              )}
-              footer={(
-                <div className="flex flex-wrap items-center justify-between gap-3 bg-surface-low px-5 py-4 text-[11px] text-ink-soft">
-                  <span className="max-w-[260px]">
-                    Menampilkan {riwayat.daftar.length} kunjungan terbaru dari total {riwayat.total} arsip medis terdaftar
-                  </span>
-                  <button
-                    type="button"
-                    onClick={lihatArsip}
-                    className="inline-flex items-center gap-2 text-left text-[13px] font-semibold text-brand hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40"
-                  >
-                    Lihat Seluruh Arsip Rekam Medis (SIM-RS)
-                    <ArrowRight className="size-4 shrink-0" />
-                  </button>
-                </div>
-              )}
-            >
-              <Table>
-                <Thead>
-                  <Tr>
-                    <Th className="px-5">Tanggal &amp; No. Reg</Th>
-                    <Th>Unit Poliklinik</Th>
-                    <Th>Dokter DPJP</Th>
-                    <Th>Diagnosis Utama</Th>
-                    <Th className="px-5">Tindakan / Status</Th>
-                  </Tr>
-                </Thead>
-                <Tbody>
-                  {riwayat.daftar.map((k) => (
-                    <Tr key={k.id}>
-                      <Td className="px-5">
-                        <p className="text-[13px] font-bold text-ink">{k.tanggal}</p>
-                        <p className="text-[10px] text-ink-muted">{k.noReg}</p>
-                      </Td>
-                      <Td>
-                        <p className="text-[13px] font-medium text-ink">{k.poli}</p>
-                        <p className="text-[10px] text-ink-muted">{k.lokasi}</p>
-                      </Td>
-                      <Td className="text-[13px] text-ink-soft">{k.dokter}</Td>
-                      <Td>
-                        <p className="text-[13px] font-medium text-ink">{k.diagnosis}</p>
-                        <p className="text-[10px] text-ink-muted">ICD-10: {k.icd}</p>
-                      </Td>
-                      <Td className="px-5">
-                        <Badge tone="success" className="uppercase">{k.status}</Badge>
-                        <p className="mt-1 text-[10px] text-ink-muted">{k.tindakan}</p>
-                      </Td>
-                    </Tr>
-                  ))}
-                </Tbody>
-              </Table>
-            </Kartu>
-          </div>
-        </div>
+  return <AppLayout role="pasien" title="Profil Pasien">
+    <PageHeader title="Profil Pasien Terintegrasi" actions={<Button icon={edit ? X : Pencil} variant={edit ? 'secondary' : 'primary'} onClick={() => setEdit(!edit)}>{edit ? 'Tutup Perubahan' : 'Mutakhirkan Data Pasien'}</Button>}>
+      <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-brand"><Contact className="size-4"/>Data pasien terpusat</span><span className="inline-flex items-center gap-1 rounded-full bg-brand-light-active px-3 py-1 text-xs font-semibold text-brand"><BadgeCheck className="size-4"/>Data tersimpan</span>
+    </PageHeader>
+    <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+      <section className="overflow-hidden rounded-2xl bg-white shadow-card">
+        <header className="flex items-center justify-between bg-surface-low px-5 py-4"><h2 className="flex items-center gap-2 font-semibold text-ink"><Contact className="size-5 text-brand"/>Identifikasi Pasien</h2><span className="rounded-md bg-white px-2 py-1 text-xs font-semibold text-ink-soft">ID P-{String(pasien.id_pasien ?? '').padStart(4, '0')}</span></header>
+        <div className="p-5"><div className="flex items-center gap-4 rounded-xl bg-surface-low p-4"><span className="flex size-16 items-center justify-center rounded-xl bg-surface-mid text-ink-muted"><UserRound className="size-8"/></span><div><p className="text-[10px] font-semibold uppercase text-ink-muted">Nama lengkap pasien</p><p className="text-lg font-bold text-ink">{pasien.nama_lengkap}</p><p className="mt-1 text-xs text-ink-soft">NIK {pasien.nik?.slice(0, 6)}{'•'.repeat(6)}{pasien.nik?.slice(-4)}</p></div></div>
+          {edit ? <form onSubmit={save} className="mt-4 grid gap-4">{Object.entries(errors).map(([key,value]) => value && <p key={key} className="text-sm text-danger">{value}</p>)}
+            <Field label="Nama lengkap" name="nama_lengkap" value={form.nama_lengkap} onChange={change} error={errors.nama_lengkap}/><div className="grid gap-4 sm:grid-cols-2"><Field label="Tempat lahir" name="tempat_lahir" value={form.tempat_lahir} onChange={change} error={errors.tempat_lahir}/><Field label="Tanggal lahir" name="tanggal_lahir" type="date" value={form.tanggal_lahir} onChange={change} error={errors.tanggal_lahir}/></div>
+            <label className="grid gap-1.5 text-xs font-semibold text-ink-soft">Jenis kelamin<select name="jenis_kelamin" value={form.jenis_kelamin} onChange={change} className="h-10 rounded-lg border border-line bg-white px-3 text-sm font-normal text-ink"><option value="L">Laki-laki</option><option value="P">Perempuan</option></select></label>
+            <Field label="Alamat" name="alamat" value={form.alamat} onChange={change} error={errors.alamat}/><div className="grid gap-4 sm:grid-cols-2"><Field label="Nama kontak darurat" name="nama_kontak_darurat" value={form.nama_kontak_darurat} onChange={change} error={errors.nama_kontak_darurat}/><Field label="Nomor kontak darurat" name="kontak_darurat" value={form.kontak_darurat} onChange={change} error={errors.kontak_darurat} inputMode="tel"/></div><div className="flex justify-end"><Button icon={Save} onClick={save}>Simpan perubahan</Button></div>
+          </form> : <div className="mt-4 divide-y divide-line/60 text-sm"><p className="flex justify-between gap-3 py-3"><span className="text-ink-soft">Tempat / tanggal lahir</span><b className="text-right">{pasien.tempat_lahir}, {pasien.tanggal_lahir ? formatTanggal(pasien.tanggal_lahir) : '—'}</b></p><p className="flex justify-between gap-3 py-3"><span className="text-ink-soft">Jenis kelamin</span><b>{pasien.jenis_kelamin === 'P' ? 'Perempuan' : 'Laki-laki'}</b></p><p className="flex justify-between gap-3 py-3"><span className="text-ink-soft">Nomor rekam medis</span><b>P-{String(pasien.id_pasien ?? '').padStart(4, '0')}</b></p></div>}
+        </div><footer className="flex items-center gap-2 bg-surface-low px-5 py-3 text-xs text-ink-soft"><ShieldCheck className="size-4 text-brand"/>Informasi identitas Anda dijaga di portal pasien.</footer>
+      </section>
+      <div className="grid gap-6">
+        <section className="overflow-hidden rounded-2xl bg-white shadow-card"><header className="bg-surface-low px-5 py-4"><h2 className="flex items-center gap-2 font-semibold text-ink"><MapPin className="size-5 text-brand"/>Domisili & Kontak Pasien</h2></header><div className="grid gap-4 p-5"><div><p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-ink-muted">Alamat</p><p className="rounded-xl bg-surface-low p-4 text-sm leading-6 text-ink">{pasien.alamat}</p></div><div className="rounded-xl bg-surface-low p-4"><p className="text-xs font-semibold text-ink-muted">Kontak darurat</p><p className="mt-2 text-sm font-semibold text-ink">{pasien.nama_kontak_darurat || 'Kontak Darurat'}</p><p className="mt-1 flex items-center gap-2 text-sm text-ink-soft"><Phone className="size-4 text-brand"/>{pasien.kontak_darurat}</p><a className="mt-2 inline-flex text-xs font-semibold text-brand" href={`tel:${pasien.kontak_darurat}`}>Hubungi kontak</a></div></div></section>
+        <section className="overflow-hidden rounded-2xl bg-white shadow-card"><header className="flex items-center justify-between bg-surface-low px-5 py-4"><h2 className="flex items-center gap-2 font-semibold text-ink"><CalendarDays className="size-5 text-brand"/>Riwayat Kunjungan Poliklinik</h2><span className="rounded-full bg-white px-3 py-1 text-xs text-ink-soft">{riwayat.length} kunjungan</span></header>
+          {riwayat.length ? <div className="divide-y divide-line/60">{riwayat.map((item) => <div key={item.id_reservasi} className="grid gap-1 px-5 py-4 sm:grid-cols-[130px_1fr_auto]"><b className="text-sm text-ink">{formatTanggal(item.tanggal)}</b><div><p className="text-sm font-semibold text-ink">{item.nama_poli}</p><p className="text-xs text-ink-soft">dr. {item.nama_dokter}</p></div><span className="self-center rounded-full bg-brand-light-active px-3 py-1 text-[10px] font-bold uppercase text-brand">Selesai</span></div>)}</div> : <p className="p-6 text-sm text-ink-muted">Belum ada kunjungan selesai yang tercatat.</p>}
+          <footer className="border-t border-line/60 px-5 py-3 text-xs text-ink-muted">Riwayat kunjungan menampilkan reservasi yang sudah selesai.</footer>
+        </section>
       </div>
-
-      {/* Pop-up UI-005. Prop pasien disiapkan untuk form pemutakhiran. */}
-      <EditDataModal open={modalBuka} onClose={() => setModalBuka(false)} pasien={pasien} />
-    </AppLayout>
-  );
+    </div>
+  </AppLayout>;
 }

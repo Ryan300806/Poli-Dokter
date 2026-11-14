@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 // UI-012 MH-IM-001 Jadwal Saya Pasien (termasuk form ubah jadwal)
-Route::inertia('/pasien/jadwal-saya', 'Pasien/JadwalSaya')->name('pasien.jadwal-saya');
+Route::middleware(\App\Http\Middleware\PasienSession::class)->get('/pasien/jadwal-saya', [\App\Http\Controllers\Pasien\PortalPasienController::class, 'riwayat'])->name('pasien.jadwal-saya');
 
 // UI-014 MH-IM-003 Antrean Periksa
 Route::inertia('/dokter/antrean-periksa', 'Dokter/AntreanPeriksa')->name('dokter.antrean-periksa');

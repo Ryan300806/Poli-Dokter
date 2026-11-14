@@ -21,6 +21,7 @@ export default defineConfig({
         inertia({ ssr: false }),
         tailwindcss(),
     ],
+    
     server: {
         watch: {
             ignored: ['**/storage/framework/views/**'],

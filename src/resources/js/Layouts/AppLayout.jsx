@@ -6,14 +6,20 @@
 // Data pengguna diambil dari props bersama Inertia (auth.user) bila BE sudah menyediakannya,
 // jika belum memakai pengguna contoh dari lib/menu.js.
 import { Head, usePage } from '@inertiajs/react';
+import { useEffect } from 'react';
 import Header from '../Components/layout/Header';
 import Sidebar from '../Components/layout/Sidebar';
 import { Toaster } from '../Components/ui/Toast';
 import { PERAN } from '../lib/menu';
+import { toast } from '../Components/ui/Toast';
 
 export default function AppLayout({ role, title, children }) {
   const { props } = usePage();
   const user = props.auth?.user ?? PERAN[role].demo;
+  useEffect(() => {
+    if (props.flash?.success) toast.success(props.flash.success);
+    if (props.flash?.info) toast.info(props.flash.info);
+  }, [props.flash?.success, props.flash?.info]);
 
   return (
     <>

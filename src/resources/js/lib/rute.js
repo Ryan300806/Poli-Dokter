@@ -14,10 +14,14 @@ export const rute = {
   pasien: {
     beranda: '/pasien/beranda', // UI-003 (MF)
     profil: '/pasien/profil', // UI-004 (MF)
+    simpanProfil: '/pasien/profil',
     penjadwalanPoli: '/pasien/penjadwalan-poli', // UI-007 (KH)
     riwayatReservasi: '/pasien/riwayat-reservasi', // UI-008 (KH)
     dasbor: '/pasien/dasbor', // UI-010 (KH)
     jadwalSaya: '/pasien/jadwal-saya', // UI-012 (MH)
+    reservasi: '/pasien/reservasi',
+    ubahReservasi: (id) => `/pasien/reservasi/${id}/jadwal`,
+    batalkanReservasi: (id) => `/pasien/reservasi/${id}`,
   },
 
   // Dokter

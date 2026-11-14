@@ -177,9 +177,7 @@ export default function Registrasi({ errors: galatServer = {} }) {
       toast.error('Data Tidak Lengkap');
       return;
     }
-    // BE nanti mengganti dua baris di bawah dengan router.post('/registrasi', form).
-    toast.success('Registrasi Berhasil');
-    router.visit(URL_LOGIN);
+    router.post('/registrasi', form, { onError: () => toast.error('Periksa kembali data pendaftaran Anda.') });
   }
 
   return (

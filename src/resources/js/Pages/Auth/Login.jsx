@@ -60,9 +60,7 @@ export default function Login({ errors: galatServer = {}, serverAktif = true }) 
       toast.error('Data Tidak Lengkap');
       return;
     }
-    // BE nanti mengganti dua baris di bawah dengan router.post('/login', form).
-    toast.success('Login Berhasil');
-    router.visit(URL_BERANDA_PASIEN);
+    router.post('/login', form, { onError: () => toast.error('NIK atau kata sandi tidak cocok.') });
   }
 
   function lupaSandi() {

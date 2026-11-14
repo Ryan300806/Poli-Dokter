@@ -19,6 +19,7 @@ services:
       DB_DATABASE: outpatient_care
       DB_USERNAME: outpatient
       DB_PASSWORD: outpatient_dev_password
+      LOG_LEVEL: warning
     depends_on:
       db:
         condition: service_healthy
@@ -32,6 +33,7 @@ services:
       MARIADB_USER: outpatient
       MARIADB_PASSWORD: outpatient_dev_password
       MARIADB_ROOT_PASSWORD: local_root_password_change_me
+      MARIADB_INNODB_BUFFER_POOL_SIZE: 128M
     ports:
       - "3307:3306"
     volumes:

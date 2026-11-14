@@ -1,4 +1,3 @@
-
 FROM php:8.4-apache
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -16,12 +15,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     zip \
     opcache \
-    && a2enmod rewrite headers \
+    && a2enmod rewrite headers deflate expires \
     && rm -rf /var/lib/apt/lists/*
 
 COPY .docker/apache/000-default.conf /etc/apache2/sites-available/000-default.conf
+COPY .docker/apache/performance.conf /etc/apache2/conf-available/performance.conf
+COPY .docker/php/php.ini /usr/local/etc/php/php.ini
 COPY .docker/php/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
 COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
+
+RUN a2enconf performance
 
 WORKDIR /var/www/html
 

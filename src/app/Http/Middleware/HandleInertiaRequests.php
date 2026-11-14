@@ -37,7 +37,18 @@ class HandleInertiaRequests extends Middleware
     {
         return [
             ...parent::share($request),
-            //
+            'auth' => [
+                'user' => function () use ($request) {
+                    $id = $request->session()->get('pasien_id');
+                    if (!$id) return null;
+                    $p = \Illuminate\Support\Facades\DB::table('pasien')->where('id_pasien', $id)->first();
+                    return $p ? ['nama' => $p->nama_lengkap, 'peran' => 'Pasien'] : null;
+                },
+            ],
+            'flash' => [
+                'success' => fn () => $request->session()->get('success'),
+                'info' => fn () => $request->session()->get('info'),
+            ],
         ];
     }
 }
