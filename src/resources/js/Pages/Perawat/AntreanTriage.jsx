@@ -21,7 +21,8 @@ function statusTriage(row, sudahDiukur) {
   return { text: 'Belum Diukur', tone: 'warning' };
 }
 
-export default function AntreanTriage() {
+export default function AntreanTriage({ antrean: antreanBackend }) {
+  const sumberAntrean = Array.isArray(antreanBackend) ? antreanBackend : antreanTriageDemo;
   const [kata, setKata] = useState('');
   const [poli, setPoli] = useState('semua');
   const [filterStatus, setFilterStatus] = useState('semua');
@@ -35,9 +36,9 @@ export default function AntreanTriage() {
   const [refresh, setRefresh] = useState(0);
   const observasi = bacaDemo('polidokter-demo-observasi', {});
 
-  const hasil = useMemo(() => antreanTriageDemo.filter((row) => {
+  const hasil = useMemo(() => sumberAntrean.filter((row) => {
     const q = kata.trim().toLowerCase();
-    const sudahDiukur = Boolean(observasi[row.id]);
+    const sudahDiukur = Boolean(row.id_observasi || observasi[row.id]);
     const cocokKategori = kategori === 'semua' || row.kategori === kategori;
     const cocokPoli = poli === 'semua' || row.poli === poli;
     const cocokStatus = filterStatus === 'semua'
@@ -50,12 +51,12 @@ export default function AntreanTriage() {
     const prioritas = (row) => (prioritaskanLansia && row.kategori === 'Geriatri' ? 2 : 0)
       + (prioritaskanAnak && row.kategori === 'Pediatri' ? 1 : 0);
     return prioritas(b) - prioritas(a);
-  }), [kata, poli, filterStatus, kategori, observasi, refresh, prioritaskanLansia, prioritaskanAnak]);
+  }), [kata, poli, filterStatus, kategori, observasi, refresh, prioritaskanLansia, prioritaskanAnak, sumberAntrean]);
   const halamanAman = Math.min(halaman, Math.max(1, Math.ceil(hasil.length / PER_HALAMAN)));
   const baris = hasil.slice((halamanAman - 1) * PER_HALAMAN, halamanAman * PER_HALAMAN);
-  const sudahTriage = Object.keys(observasi).length;
-  const belumDiukur = Math.max(0, antreanTriageDemo.length - sudahTriage);
-  const rujukanCito = 1;
+  const sudahTriage = Array.isArray(antreanBackend) ? sumberAntrean.filter((row) => row.id_observasi).length : Object.keys(observasi).length;
+  const belumDiukur = Array.isArray(antreanBackend) ? hasil.filter((row) => !row.id_observasi).length : Math.max(0, antreanTriageDemo.length - sudahTriage);
+  const rujukanCito = Array.isArray(antreanBackend) ? 0 : 1;
 
   function ubahFilter(setter, value) {
     setter(value);
@@ -67,7 +68,7 @@ export default function AntreanTriage() {
       <header className="-mt-0.5 flex flex-wrap items-end justify-between gap-4 pb-px xl:ml-[2px] xl:max-w-[895px]">
         <div>
           <div className="xl:max-w-[548px]">
-            <div className="mb-1 flex items-center gap-2"><Badge className="!px-2 !py-[2px] !leading-[14px]" tone="success">Unit Rawat Jalan</Badge><Badge className="!px-2 !py-[2px] !leading-[14px]" tone="info">Data demo</Badge><span className="text-[10px] text-ink-muted">• Stasiun Perawat Lantai 2</span></div>
+            <div className="mb-1 flex items-center gap-2"><Badge className="!px-2 !py-[2px] !leading-[14px]" tone="success">Unit Rawat Jalan</Badge><Badge className="!px-2 !py-[2px] !leading-[14px]" tone={Array.isArray(antreanBackend) ? 'success' : 'info'}>{Array.isArray(antreanBackend) ? 'Data server' : 'Data demo'}</Badge><span className="text-[10px] text-ink-muted">• Stasiun Perawat Lantai 2</span></div>
             <h1 className="text-[28px] font-bold leading-10 tracking-tight">Daftar Antrean Triage Rawat Jalan</h1>
             <p className="mt-1 max-w-2xl text-[13px] text-ink-muted">Pemeriksaan tanda-tanda vital, anamnesis keluhan utama, dan skrining awal pasien sebelum masuk ruang periksa dokter spesialis.</p>
           </div>
@@ -91,7 +92,7 @@ export default function AntreanTriage() {
         <div className="flex flex-wrap items-center gap-2 p-4">
           <span className="flex items-center gap-2 text-xs font-semibold"><Filter className="size-4 text-ink-muted" />Filter:</span>
           <select aria-label="Filter poli" value={poli} onChange={(e) => ubahFilter(setPoli, e.target.value)} className="h-9 rounded-lg bg-surface-low px-3 text-xs">
-            <option value="semua">Semua Poli</option>{[...new Set(antreanTriageDemo.map((row) => row.poli))].map((item) => <option key={item}>{item}</option>)}
+            <option value="semua">Semua Poli</option>{[...new Set(sumberAntrean.map((row) => row.poli))].map((item) => <option key={item}>{item}</option>)}
           </select>
           <select aria-label="Filter status triage" value={filterStatus} onChange={(e) => ubahFilter(setFilterStatus, e.target.value)} className="h-9 rounded-lg bg-surface-low px-3 text-xs">
             <option value="semua">Semua Status Triage</option><option value="belum">Belum Diukur</option><option value="observasi">Sedang Diobservasi</option><option value="selesai">Triage Selesai</option>
@@ -107,7 +108,7 @@ export default function AntreanTriage() {
             <thead className="bg-surface-low text-[10px] uppercase tracking-wide text-ink-muted"><tr>{['No. Urut', 'Waktu Tiba', 'No. RM & NIK', 'Nama Pasien', 'Poli Tujuan', 'Status Observasi', 'Aksi'].map((head) => <th key={head} className="px-4 py-3 font-semibold">{head}</th>)}</tr></thead>
             <tbody className="divide-y divide-line">
               {baris.map((row) => {
-                const sudahDiukur = Boolean(observasi[row.id]);
+                const sudahDiukur = Boolean(row.id_observasi || observasi[row.id]);
                 const status = statusTriage(row, sudahDiukur);
                 return <tr key={row.id} className="hover:bg-surface">
                   <td className="px-4 py-3"><span className={`rounded-lg px-2 py-1.5 font-bold ${row.no === 'T-01' ? 'bg-brand-light-active text-brand-dark' : 'bg-surface-mid text-ink'}`}>{row.no}</span></td>
@@ -116,14 +117,14 @@ export default function AntreanTriage() {
                   <td className="px-4 py-3"><div className="flex items-center gap-3"><span className="flex size-9 items-center justify-center rounded-full bg-surface-mid font-semibold text-brand">{row.nama.split(' ').map((part) => part[0]).slice(0, 1)}</span><div><b className="text-xs">{row.nama}</b><small className="block text-[10px] text-ink-muted">{row.jk}, {row.umur} thn • {row.jaminan}</small></div></div></td>
                   <td className="px-4 py-3"><Badge tone="neutral" icon={Activity}>{row.poli}</Badge></td>
                   <td className="px-4 py-3"><Badge tone={status.tone} dot>{status.text}</Badge></td>
-                  <td className="px-4 py-3"><Button size="sm" icon={sudahDiukur ? CheckCircle2 : Activity} variant={sudahDiukur ? 'secondary' : 'primary'} onClick={() => router.visit(rute.perawat.formObservasi(row.id))}>{sudahDiukur ? 'Lihat / Ubah' : row.status === 'Sedang Diobservasi' ? 'Lanjutkan Form' : 'Lakukan Observasi'}</Button></td>
+                  <td className="px-4 py-3"><Button size="sm" icon={sudahDiukur ? CheckCircle2 : Activity} variant={sudahDiukur ? 'secondary' : 'primary'} onClick={() => router.visit(rute.perawat.formObservasi(row.idReservasi ?? row.id))}>{sudahDiukur ? 'Lihat / Ubah' : row.status === 'Sedang Diobservasi' ? 'Lanjutkan Form' : 'Lakukan Observasi'}</Button></td>
                 </tr>;
               })}
               {baris.length === 0 && <tr><td colSpan={7} className="px-4 py-12 text-center text-sm text-ink-muted">Tidak ada antrean yang cocok dengan filter.</td></tr>}
             </tbody>
           </table>
         </div>
-        <div className="flex items-center justify-between bg-surface-low px-5 py-3 text-[10px] text-ink-muted"><span>Menampilkan {baris.length ? (halamanAman - 1) * PER_HALAMAN + 1 : 0}-{(halamanAman - 1) * PER_HALAMAN + baris.length} dari {hasil.length} antrean demo</span><Pagination halaman={halamanAman} totalHalaman={Math.max(1, Math.ceil(hasil.length / PER_HALAMAN))} onUbah={setHalaman} /></div>
+        <div className="flex items-center justify-between bg-surface-low px-5 py-3 text-[10px] text-ink-muted"><span>Menampilkan {baris.length ? (halamanAman - 1) * PER_HALAMAN + 1 : 0}-{(halamanAman - 1) * PER_HALAMAN + baris.length} dari {hasil.length} antrean {Array.isArray(antreanBackend) ? 'server' : 'demo'}</span><Pagination halaman={halamanAman} totalHalaman={Math.max(1, Math.ceil(hasil.length / PER_HALAMAN))} onUbah={setHalaman} /></div>
       </section>
 
       <Modal open={modalAlur} onClose={() => setModalAlur(false)} title="Atur Alur Skrining" description="Preferensi ini berlaku sementara di browser demo." footer={<><Button variant="secondary" onClick={() => setModalAlur(false)}>Batal</Button><Button icon={Settings2} onClick={() => { try { simpanDemo('polidokter-demo-alur', { lansia: draftLansia, anak: draftAnak }); setPrioritaskanLansia(draftLansia); setPrioritaskanAnak(draftAnak); setModalAlur(false); toast.success('Alur skrining demo diperbarui.'); } catch (error) { console.error('Gagal menyimpan preferensi skrining demo.', error); toast.error('Preferensi belum tersimpan di browser. Periksa izin penyimpanan lalu coba lagi.'); } }}>Simpan Preferensi</Button></>}>

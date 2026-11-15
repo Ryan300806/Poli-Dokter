@@ -68,7 +68,7 @@ export default function FormDiagnosis({ antreanId }) {
   }
 
   function lanjutKeResep() {
-    router.visit(rute.dokter.formEResep(pasien.id));
+    router.visit(rute.dokter.formEResep(antreanId));
   }
 
   function simpanRujukan() {

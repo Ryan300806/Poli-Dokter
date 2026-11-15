@@ -12,7 +12,7 @@ import { toast } from '../../Components/ui/Toast';
 import { pasienRiwayatDemo } from '../../data/dokterDemo';
 import { rute } from '../../lib/rute';
 
-function ProfilPasien({ pasien, onKembali, riwayatMedis, triageTerbaru }) {
+function ProfilPasien({ pasien, onKembali, riwayatMedis, triageTerbaru, antreanId }) {
   return (
     <>
       <div className="flex items-center justify-between">
@@ -80,7 +80,7 @@ function ProfilPasien({ pasien, onKembali, riwayatMedis, triageTerbaru }) {
             <p className="mt-1 text-[10px] text-ink-muted">Hasil radiologi dan lab 30 hari terakhir</p>
             <div className="mt-3 space-y-2">{['USG Abdomen Atas • 15 Juli 2024', 'Rekaman EKG 12-Lead • 02 Feb 2024'].map((item) => <button key={item} type="button" onClick={() => toast.info(`${item} tersedia dalam data demo.`)} className="flex w-full items-center gap-2 rounded-lg bg-surface-low p-3 text-left text-xs hover:bg-brand-light"><CalendarDays className="size-4 text-brand" />{item}</button>)}</div>
           </section>
-          <Button icon={Weight} className="w-full" onClick={() => router.visit(rute.dokter.formDiagnosis(pasien.id))}>Lanjutkan ke Form Diagnosis</Button>
+          <Button icon={Weight} className="w-full" disabled={!antreanId && String(pasien.rm).startsWith('P-')} onClick={() => router.visit(rute.dokter.formDiagnosis(antreanId ?? pasien.id))}>Lanjutkan ke Form Diagnosis</Button>
         </div>
       </div>
     </>
@@ -124,7 +124,7 @@ export default function RiwayatMedis({ antreanId, pasien: dataPasien, daftarPasi
   return (
     <AppLayout role="dokter" title="Riwayat Medis">
       {pasienTerpilih ? (
-        <><div className="flex justify-end"><Badge tone={dataPasien ? 'success' : 'info'}>{dataPasien ? 'Data rekam medis' : 'Data demo'}</Badge></div><ProfilPasien pasien={pasienTerpilih} riwayatMedis={riwayatMedis} triageTerbaru={triageTerbaru} onKembali={() => router.visit(rute.dokter.riwayatMedis())} /></>
+        <><div className="flex justify-end"><Badge tone={dataPasien ? 'success' : 'info'}>{dataPasien ? 'Data rekam medis' : 'Data demo'}</Badge></div><ProfilPasien pasien={pasienTerpilih} riwayatMedis={riwayatMedis} triageTerbaru={triageTerbaru} antreanId={antreanId} onKembali={() => router.visit(rute.dokter.riwayatMedis())} /></>
       ) : (
         <>
           <div className="flex flex-wrap items-end justify-between gap-4">

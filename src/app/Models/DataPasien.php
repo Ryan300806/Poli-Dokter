@@ -34,6 +34,14 @@ class DataPasien extends Model
 
     protected $hidden = ['password'];
 
+    public static function ambilDataPasien(int $idPasien): array
+    {
+        return static::query()->whereKey($idPasien)->first()?->makeVisible(['nik'])->only([
+            'id_pasien', 'nik', 'nama_lengkap', 'tempat_lahir', 'tanggal_lahir', 'alamat',
+            'jenis_kelamin', 'kontak_darurat', 'golongan_darah', 'last_profile_update_at',
+        ]) ?? [];
+    }
+
     public static function cekNIK(string $nik): bool
     {
         return static::query()->where('nik', $nik)->exists();

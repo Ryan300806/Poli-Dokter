@@ -22,9 +22,10 @@ function Langkah({ nomor, judul, sub, aktif, selesai }) {
   return <div className={`flex flex-1 items-center gap-2 rounded-full px-3 py-2 ${aktif ? 'bg-brand-light-active text-brand-dark' : selesai ? 'bg-brand-light text-brand-dark' : 'bg-surface-low text-ink-muted'}`}><span className={`flex size-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${aktif || selesai ? 'bg-brand text-white' : 'bg-surface-mid'}`}>{selesai ? <Check className="size-3" /> : nomor}</span><span><b className="block text-[9px] uppercase">{judul}</b><small className="text-[8px]">{sub}</small></span></div>;
 }
 
-export default function PengirimanObat({ eresepId }) {
+export default function PengirimanObat({ eresepId, eresepServer }) {
   const resepDaftar = useMemo(ambilSemua, []);
-  const resep = resepDaftar.find((item) => item.id === eresepId) ?? resepDaftar.find((item) => item.status === 'Siap Diserahkan') ?? resepDaftar[0];
+  const resep = eresepServer ?? resepDaftar.find((item) => item.id === eresepId) ?? resepDaftar.find((item) => item.status === 'Siap Diserahkan') ?? resepDaftar[0];
+  const isServerData = Boolean(eresepServer);
   const [identitasSesuai, setIdentitasSesuai] = useState(false);
   const [modalKonfirmasi, setModalKonfirmasi] = useState(false);
   const sudahDiserahkan = resep.status === 'Obat Sudah Diberikan';
@@ -32,6 +33,13 @@ export default function PengirimanObat({ eresepId }) {
   function konfirmasiPenyerahan() {
     if (!identitasSesuai) {
       toast.error('Centang verifikasi identitas pasien sebelum mengonfirmasi.');
+      return;
+    }
+    if (isServerData) {
+      router.post(`/apoteker/e-resep/${eresepId}/status`, { statusBaru: 'selesai' }, {
+        onSuccess: () => { setModalKonfirmasi(false); toast.success('Penyerahan obat tercatat ke database.'); router.visit(rute.apoteker.notifikasiEResep); },
+        onError: () => toast.error('Status penyerahan gagal disimpan.'),
+      });
       return;
     }
     try {
@@ -54,7 +62,7 @@ export default function PengirimanObat({ eresepId }) {
   return (
     <AppLayout role="apoteker" title="Penyerahan Obat Pasien" contentClassName="pl-3 pr-9 xl:pl-[27px] xl:pr-[100px]">
       <div className="flex items-center justify-between"><Button variant="ghost" icon={ArrowLeft} onClick={() => router.visit(rute.apoteker.notifikasiEResep)}>Kembali ke Resep</Button><Badge tone="success" dot>Antrean Loket: F-042</Badge></div>
-      <header><p className="text-[9px] font-semibold uppercase tracking-wide text-brand">UI-023: Farmasi Rawat Jalan • Loket Penyerahan Obat 2 • Demo Lokal</p><h1 className="mt-1 text-[27px] font-bold">Penyerahan Obat Pasien</h1><p className="text-[13px] text-ink-muted">Verifikasi identitas pasien dan pemeriksaan kesesuaian obat sebelum penyerahan di loket farmasi.</p></header>
+      <header><p className="text-[9px] font-semibold uppercase tracking-wide text-brand">UI-023: Farmasi Rawat Jalan • Loket Penyerahan Obat 2 • {isServerData ? 'Database' : 'Demo Lokal'}</p><h1 className="mt-1 text-[27px] font-bold">Penyerahan Obat Pasien</h1><p className="text-[13px] text-ink-muted">Verifikasi identitas pasien dan pemeriksaan kesesuaian obat sebelum penyerahan di loket farmasi.</p></header>
 
       <div className="flex flex-wrap gap-2"><Langkah nomor="1" judul="Tahap 01" sub="Identifikasi Pasien" selesai /><Langkah nomor="2" judul="Tahap 02 • Sedang Berlangsung" sub="Pemeriksaan Obat & Telaah" aktif /><Langkah nomor="3" judul="Tahap 03" sub="Konfirmasi Penyerahan" /></div>
 
@@ -93,7 +101,7 @@ export default function PengirimanObat({ eresepId }) {
       </div>
 
       <Modal open={modalKonfirmasi} onClose={() => setModalKonfirmasi(false)} title="Konfirmasi Penyerahan Obat" description={`Resep ${resep.id} • ${resep.pasien}`} footer={<><Button variant="secondary" onClick={() => setModalKonfirmasi(false)}>Batal</Button><Button icon={CheckCircle2} disabled={!identitasSesuai} onClick={konfirmasiPenyerahan}>Konfirmasi Penyerahan</Button></>}>
-        Pastikan semua obat telah diserahkan dan identitas pasien telah diverifikasi. Tindakan ini hanya mencatat simulasi di browser.
+        Pastikan semua obat telah diserahkan dan identitas pasien telah diverifikasi. {isServerData ? 'Status penyerahan akan dicatat pada database.' : 'Tindakan ini mencatat simulasi di browser.'}
       </Modal>
     </AppLayout>
   );

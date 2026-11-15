@@ -36,11 +36,13 @@ function Field({ label, unit, value, onChange, type = 'number', min = '0', max, 
   );
 }
 
-export default function FormObservasi({ antreanId }) {
-  const pasien = useMemo(
+export default function FormObservasi({ antreanId, pasien: pasienBackend, observasi: observasiBackend }) {
+  const pasienDemo = useMemo(
     () => antreanTriageDemo.find((item) => item.id === String(antreanId)) ?? antreanTriageDemo[0],
     [antreanId],
   );
+  const pasien = pasienBackend ?? pasienDemo;
+  const isServerData = Boolean(pasienBackend);
   const tersimpan = bacaDemo('polidokter-demo-observasi', {});
   const [form, setForm] = useState(() => ({ ...initialForm(pasien), ...(tersimpan[pasien.id] ?? {}) }));
   const [error, setError] = useState('');
@@ -52,12 +54,12 @@ export default function FormObservasi({ antreanId }) {
   }
 
   function validasi() {
-    const angka = ['tdSis', 'tdDia', 'suhu', 'berat', 'tinggi', 'spo2', 'nadi', 'respirasi'];
+    const angka = isServerData ? ['tdSis', 'tdDia', 'suhu', 'berat'] : ['tdSis', 'tdDia', 'suhu', 'berat', 'tinggi', 'spo2', 'nadi', 'respirasi'];
     const tidakValid = angka.find((key) => form[key] === '' || !Number.isFinite(Number(form[key])) || Number(form[key]) <= 0);
     if (tidakValid) return 'Semua parameter vital harus diisi dengan angka lebih dari 0.';
     if (Number(form.spo2) > 100) return 'Saturasi oksigen tidak boleh lebih dari 100%.';
     if (Number(form.suhu) < 30 || Number(form.suhu) > 45) return 'Suhu tubuh harus berada dalam rentang 30–45 °C.';
-    if (!form.catatan.trim()) return 'Catatan keluhan dan riwayat alergi wajib diisi.';
+    if (!isServerData && !form.catatan.trim()) return 'Catatan keluhan dan riwayat alergi wajib diisi.';
     return '';
   }
 
@@ -66,6 +68,20 @@ export default function FormObservasi({ antreanId }) {
     const pesanError = validasi();
     if (pesanError) {
       setError(pesanError);
+      return;
+    }
+
+    if (isServerData) {
+      const tekananDarah = `${form.tdSis}/${form.tdDia}`;
+      const payload = { tekananDarah, suhu: form.suhu, beratBadan: form.berat };
+      const url = observasiBackend?.id_observasi
+        ? `/perawat/observasi/${observasiBackend.id_observasi}`
+        : `/perawat/observasi/${antreanId}`;
+      router[observasiBackend?.id_observasi ? 'put' : 'post'](url, payload, {
+        preserveScroll: true,
+        onSuccess: () => { setError(''); router.visit(rute.perawat.antreanTriage); },
+        onError: (errors) => setError(errors.tekananDarah || errors.suhu || errors.beratBadan || 'Data observasi gagal disimpan.'),
+      });
       return;
     }
 
@@ -90,7 +106,7 @@ export default function FormObservasi({ antreanId }) {
   return (
     <AppLayout role="perawat" title="Formulir Observasi Triage" contentClassName="pl-3 pr-9 xl:pl-[30px] xl:pr-[100px]">
       <div className="mt-[9px] -mb-[9px] flex flex-wrap items-end justify-between gap-3 pb-2">
-        <div><h1 className="flex items-center gap-2 text-[27px] font-bold leading-9">Formulir Observasi Triage &amp; Tanda Vital <Badge tone="info">Demo</Badge></h1><p className="text-[13px] text-ink-muted">Input pemeriksaan klinis awal pasien: <b className="text-ink">{pasien.nama}</b> ({pasien.rm}) - Poli {pasien.poli}</p></div>
+        <div><h1 className="flex items-center gap-2 text-[27px] font-bold leading-9">Formulir Observasi Triage &amp; Tanda Vital <Badge tone={isServerData ? 'success' : 'info'}>{isServerData ? 'Data server' : 'Demo'}</Badge></h1><p className="text-[13px] text-ink-muted">Input pemeriksaan klinis awal pasien: <b className="text-ink">{pasien.nama}</b> ({pasien.rm}) - Poli {pasien.poli}</p></div>
         <Button variant="ghost" icon={ArrowLeft} onClick={() => router.visit(rute.perawat.antreanTriage)}>Kembali ke Antrean</Button>
       </div>
 

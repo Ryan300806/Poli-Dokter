@@ -80,14 +80,16 @@ class RMEController extends Controller
         $pasien = DataPasien::query()->whereKey($idPasien)->firstOrFail();
         $riwayat = DataRekamMedis::ambilRiwayatDanAlergi($idPasien)
             ?? ['id_pasien' => $idPasien, 'riwayat_penyakit' => 'Nihil', 'alergi' => '-'];
+        $triage = DataObservasi::ambilTriageTerbaru($idPasien);
 
         return Inertia::render('Dokter/RiwayatMedis', [
+            'antreanId' => $triage['id_antrean'] ?? null,
             'pasien' => $pasien->only([
                 'id_pasien', 'nik', 'nama_lengkap', 'tempat_lahir', 'tanggal_lahir',
                 'jenis_kelamin', 'golongan_darah', 'kontak_darurat',
             ]),
             'riwayatMedis' => $riwayat,
-            'triageTerbaru' => DataObservasi::ambilTriageTerbaru($idPasien),
+            'triageTerbaru' => $triage,
         ]);
     }
 }

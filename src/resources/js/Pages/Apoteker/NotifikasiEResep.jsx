@@ -22,8 +22,8 @@ function ambilResep() {
     .map((item) => ({ ...item, ...(statusTersimpan[item.id] ?? {}) }));
 }
 
-export default function NotifikasiEResep() {
-  const [resep, setResep] = useState(ambilResep);
+export default function NotifikasiEResep({ resepServer }) {
+  const [resep, setResep] = useState(() => Array.isArray(resepServer) ? resepServer : ambilResep());
   const [filter, setFilter] = useState('belum');
   const [kata, setKata] = useState('');
   const [halaman, setHalaman] = useState(1);
@@ -64,7 +64,7 @@ export default function NotifikasiEResep() {
   return (
     <AppLayout role="apoteker" title="Notifikasi E-Resep" contentClassName="pl-3 pr-9 xl:pl-[27px] xl:pr-[100px]">
       <header className="mt-[11px] mb-[11px] flex flex-wrap items-center justify-between gap-4">
-        <div><div className="flex h-7 items-center gap-2"><Badge className="!px-2 !py-[2px] !leading-[14px]" tone="success">Farmasi Rawat Jalan</Badge><Badge className="!px-2 !py-[2px] !leading-[14px]" tone="info">Demo lokal</Badge><span className="text-[10px] text-ink-muted">• Real-time sinkronisasi</span></div><h1 className="text-[28px] font-bold leading-10">Notifikasi E-Resep</h1></div>
+        <div><div className="flex h-7 items-center gap-2"><Badge className="!px-2 !py-[2px] !leading-[14px]" tone="success">Farmasi Rawat Jalan</Badge><Badge className="!px-2 !py-[2px] !leading-[14px]" tone={Array.isArray(resepServer) ? 'success' : 'info'}>{Array.isArray(resepServer) ? 'Data server' : 'Demo lokal'}</Badge><span className="text-[10px] text-ink-muted">• Data E-Resep</span></div><h1 className="text-[28px] font-bold leading-10">Notifikasi E-Resep</h1></div>
         <div className="flex gap-2"><Badge tone="success" dot>Sistem HIS Aktif</Badge><Badge tone="neutral"><Clock3 className="size-3" />Update 10 dtk lalu</Badge></div>
       </header>
 
