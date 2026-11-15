@@ -65,6 +65,9 @@ function SelTriage({ p }) {
       </div>
     );
   }
+  if (!p.triage) {
+    return <Badge tone="muted">Belum ada data triage</Badge>;
+  }
   const { td, nadi, suhu } = p.triage;
   return (
     <div className="flex flex-col items-start gap-1">
@@ -134,7 +137,7 @@ export default function AntreanPeriksa({ dokter = dokterContoh, antrean: antrean
   }, [dataAntreanDemo]);
 
   function bukaRM(p) {
-    router.visit(rute.dokter.riwayatMedis(p.id), {
+    router.visit(rute.dokter.riwayatMedis(p.pasienId ?? p.id), {
       onError: () => toast.error('Gagal mengambil riwayat medis, coba lagi.'), // pesan dari Modul 2
     });
   }

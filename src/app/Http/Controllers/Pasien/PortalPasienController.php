@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Pasien;
 
 use App\Http\Controllers\Controller;
+use App\Models\DataJadwalDokter;
+use App\Models\DataPasien;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -35,11 +37,7 @@ class PortalPasienController extends Controller
 
     private function slots(?int $poli = null): array
     {
-        return DB::table('slot_jadwal as s')->join('dokter as d', 'd.id_dokter', '=', 's.id_dokter')
-            ->join('poli as p', 'p.id_poli', '=', 's.id_poli')->whereDate('s.tanggal', '>=', today())
-            ->where('s.sisa_kuota', '>', 0)->where('s.status_slot', 'tersedia')->when($poli, fn ($q) => $q->where('s.id_poli', $poli))
-            ->orderBy('s.tanggal')->orderBy('s.jam')->select('s.id_slot','s.id_poli','s.id_dokter','s.tanggal','s.jam','s.sisa_kuota',
-                'p.nama_poli','d.nama_dokter')->get()->map(fn ($s) => (array) $s)->all();
+        return DataJadwalDokter::getJadwalTersedia($poli);
     }
 
     public function beranda(Request $request): Response
@@ -69,7 +67,7 @@ class PortalPasienController extends Controller
         $idPasien = $this->pasienId($request);
         DB::transaction(function () use ($data, $idPasien) {
             $slot = DB::table('slot_jadwal')->where('id_slot', $data['id_slot'])->lockForUpdate()->first();
-            if (!$slot || $slot->status_slot !== 'tersedia' || $slot->sisa_kuota < 1 || $slot->tanggal < today()->toDateString()) {
+            if (!$slot || DataJadwalDokter::cekKetersediaanSlot($slot->id_slot, $slot->tanggal) !== 'Tersedia' || $slot->tanggal < today()->toDateString()) {
                 throw ValidationException::withMessages(['id_slot' => 'Jadwal sudah penuh atau tidak tersedia.']);
             }
             $sudahAda = DB::table('reservasi')->where('id_pasien', $idPasien)->where('id_slot', $slot->id_slot)
@@ -78,7 +76,9 @@ class PortalPasienController extends Controller
             $nomor = DB::table('reservasi')->where('id_slot', $slot->id_slot)->whereNotIn('status_reservasi', ['dibatalkan'])->count() + 1;
             $rid = DB::table('reservasi')->insertGetId(['id_pasien'=>$idPasien,'id_dokter'=>$slot->id_dokter,'id_slot'=>$slot->id_slot,
                 'tanggal'=>$slot->tanggal,'nomor_antrean'=>$nomor,'status_reservasi'=>'aktif','alasan_pembatalan'=>''], 'id_reservasi');
-            DB::table('slot_jadwal')->where('id_slot',$slot->id_slot)->decrement('sisa_kuota');
+            if (! DataJadwalDokter::kurangiKuotaSlot($slot->id_slot)) {
+                throw ValidationException::withMessages(['id_slot' => 'Kuota jadwal sudah habis.']);
+            }
             DB::table('antrean')->insert(['id_pasien'=>$idPasien,'id_reservasi'=>$rid,'tanggal_antrean'=>$slot->tanggal,
                 'jenis_antrean'=>'rawat_jalan','status_antrean'=>'menunggu']);
         });
@@ -107,10 +107,14 @@ class PortalPasienController extends Controller
             if (now()->addHours(2)->greaterThan(\Carbon\Carbon::parse($item->tanggal.' '.$old->jam))) throw ValidationException::withMessages(['id_slot'=>'Perubahan jadwal hanya dapat dilakukan minimal 2 jam sebelum kunjungan.']);
             $new = DB::table('slot_jadwal')->where('id_slot',$data['id_slot'])->lockForUpdate()->first();
             if (!$new || $new->status_slot !== 'tersedia' || $new->sisa_kuota < 1 || $new->tanggal < today()->toDateString()) throw ValidationException::withMessages(['id_slot'=>'Jadwal pengganti tidak tersedia.']);
-            DB::table('slot_jadwal')->where('id_slot',$old->id_slot)->increment('sisa_kuota');
+            if (! DataJadwalDokter::bebaskanSlotLama($old->id_slot)) {
+                throw ValidationException::withMessages(['id_slot' => 'Kuota jadwal lama gagal dikembalikan.']);
+            }
             $nomor = DB::table('reservasi')->where('id_slot',$new->id_slot)->where('status_reservasi','!=','dibatalkan')->count() + 1;
             DB::table('reservasi')->where('id_reservasi',$reservasi)->update(['id_slot'=>$new->id_slot,'id_dokter'=>$new->id_dokter,'tanggal'=>$new->tanggal,'nomor_antrean'=>$nomor]);
-            DB::table('slot_jadwal')->where('id_slot',$new->id_slot)->decrement('sisa_kuota');
+            if (! DataJadwalDokter::isiSlotBaru($new->id_slot)) {
+                throw ValidationException::withMessages(['id_slot' => 'Kuota jadwal pengganti sudah habis.']);
+            }
             DB::table('antrean')->where('id_reservasi',$reservasi)->update(['tanggal_antrean'=>$new->tanggal,'status_antrean'=>'menunggu']);
         });
         return back()->with('success','Jadwal kunjungan berhasil diubah.');
@@ -125,7 +129,9 @@ class PortalPasienController extends Controller
             $slot = DB::table('slot_jadwal')->where('id_slot',$item->id_slot)->first();
             if (now()->addHours(2)->greaterThan(\Carbon\Carbon::parse($item->tanggal.' '.$slot->jam))) throw ValidationException::withMessages(['alasan'=>'Pembatalan hanya dapat dilakukan minimal 2 jam sebelum kunjungan.']);
             DB::table('reservasi')->where('id_reservasi',$reservasi)->update(['status_reservasi'=>'dibatalkan','alasan_pembatalan'=>$data['alasan'] ?? 'Dibatalkan oleh pasien']);
-            DB::table('slot_jadwal')->where('id_slot',$slot->id_slot)->increment('sisa_kuota');
+            if (! DataJadwalDokter::bebaskanSlotLama($slot->id_slot)) {
+                throw ValidationException::withMessages(['alasan' => 'Kuota jadwal gagal dikembalikan.']);
+            }
             DB::table('antrean')->where('id_reservasi',$reservasi)->update(['status_antrean'=>'dibatalkan']);
         });
         return back()->with('success','Reservasi berhasil dibatalkan.');
@@ -133,11 +139,11 @@ class PortalPasienController extends Controller
 
     public function profil(Request $request): Response
     {
-        $pasien = DB::table('pasien')->where('id_pasien',$this->pasienId($request))->first();
+        $pasien = DataPasien::query()->whereKey($this->pasienId($request))->firstOrFail();
         $riwayat = DB::table('reservasi as r')->join('dokter as d','d.id_dokter','=','r.id_dokter')->join('poli as p','p.id_poli','=','d.id_poli')
             ->where('r.id_pasien',$pasien->id_pasien)->whereIn('r.status_reservasi',['selesai'])->orderByDesc('r.tanggal')->limit(4)
             ->select('r.id_reservasi','r.tanggal','r.status_reservasi','d.nama_dokter','p.nama_poli')->get();
-        $terakhir = $pasien->last_profile_update_at ? Carbon::parse($pasien->last_profile_update_at) : null;
+        $terakhir = DataPasien::getTanggalUpdateTerakhir($pasien->getKey());
         $tersediaPada = $terakhir?->copy()->addDays(365);
         $infoPembaruan = [
             'lastUpdatedAt' => $terakhir?->toIso8601String(),
@@ -156,16 +162,18 @@ class PortalPasienController extends Controller
             'kontak_darurat'=>['required','string','max:20'],
             'nama_kontak_darurat'=>['required','string','max:100']]);
         $hasil = DB::transaction(function () use ($data, $request) {
-            $pasien = DB::table('pasien')->where('id_pasien',$this->pasienId($request))->lockForUpdate()->first();
-            $terakhir = $pasien->last_profile_update_at ? Carbon::parse($pasien->last_profile_update_at) : null;
+            $pasien = DataPasien::query()->whereKey($this->pasienId($request))->lockForUpdate()->firstOrFail();
+            $terakhir = DataPasien::getTanggalUpdateTerakhir($pasien->getKey());
             $tersediaPada = $terakhir?->copy()->addDays(365);
             if ($tersediaPada && $tersediaPada->isFuture()) {
                 return ['status'=>'blocked','lastUpdatedAt'=>$terakhir->toIso8601String(),
                     'nextAvailableAt'=>$tersediaPada->toIso8601String(),'daysElapsed'=>max(0,(int)$terakhir->diffInDays(now())),
                     'intervalLabel'=>$this->intervalLabel($terakhir)];
             }
-            $data['last_profile_update_at'] = now();
-            DB::table('pasien')->where('id_pasien',$pasien->id_pasien)->update($data);
+            if (! DataPasien::updateDataPasien($pasien->getKey(), $data)) {
+                throw ValidationException::withMessages(['pemutakhiran' => 'Profil pasien tidak berhasil diperbarui.']);
+            }
+
             return ['status'=>'success','lastUpdatedAt'=>now()->toIso8601String(),
                 'nextAvailableAt'=>now()->addDays(365)->toIso8601String(),'daysElapsed'=>0,'intervalLabel'=>'0 hari'];
         });

@@ -48,19 +48,23 @@ export default function FormDiagnosis({ antreanId }) {
       return;
     }
 
-    try {
-      const daftar = bacaDemo('polidokter-demo-diagnosis', []);
-      simpanDemo('polidokter-demo-diagnosis', [
-        ...daftar,
-        { id: Date.now(), pasienId: pasien.id, diagnosis: form.diagnosis.trim(), rencana: form.rencana.trim(), catatan: form.catatan.trim(), dibuatPada: new Date().toISOString() },
-      ]);
-      setError('');
-      setTersimpan(true);
-      toast.success('Diagnosis disimpan pada demo lokal browser.');
-    } catch (saveError) {
-      console.error('Gagal menyimpan diagnosis demo.', saveError);
-      setError('Diagnosis belum tersimpan. Periksa izin penyimpanan browser lalu coba lagi.');
+    if (!antreanId || !/^\d+$/.test(String(antreanId))) {
+      setError('ID antrean pemeriksaan tidak valid. Buka form dari daftar antrean server.');
+      return;
     }
+
+    router.post(`/dokter/diagnosis/${antreanId}`, {
+      namaDiagnosis: form.diagnosis.trim(),
+      rencanaTindakan: form.rencana.trim(),
+    }, {
+      preserveScroll: true,
+      onSuccess: () => {
+        setError('');
+        setTersimpan(true);
+        toast.success('Diagnosis berhasil disimpan ke rekam medis.');
+      },
+      onError: (errors) => setError(errors.namaDiagnosis || errors.rencanaTindakan || errors.idPemeriksaan || 'Diagnosis gagal disimpan.'),
+    });
   }
 
   function lanjutKeResep() {
@@ -183,7 +187,7 @@ export default function FormDiagnosis({ antreanId }) {
 
             {error && <p className="mt-4 rounded-lg bg-danger-light p-3 text-xs text-danger" role="alert">{error}</p>}
             <div className="mt-6 flex min-h-14 flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
-              <span className="flex items-center gap-2 text-[10px] text-ink-muted"><ShieldCheck className="size-4 text-brand" />{tersimpan ? 'Diagnosis tersimpan pada penyimpanan demo lokal' : 'Draft aktif pada demo lokal poli'}</span>
+      <span className="flex items-center gap-2 text-[10px] text-ink-muted"><ShieldCheck className="size-4 text-brand" />{tersimpan ? 'Diagnosis tersimpan ke rekam medis' : 'Diagnosis akan disimpan ke server'}</span>
               <div className="flex gap-2">
                 <Button type="button" className="h-10" variant="secondary" onClick={() => setForm({ diagnosis: '', rencana: '', catatan: '', resep: '' })}>Batal</Button>
                 <Button type="submit" className="h-10" icon={Save}>Simpan Diagnosis</Button>

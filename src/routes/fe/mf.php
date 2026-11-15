@@ -5,13 +5,14 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Pasien\AuthPasienController;
+use App\Http\Controllers\Pasien\RegistrasiController;
 use App\Http\Controllers\Pasien\PortalPasienController;
 use App\Http\Middleware\PasienSession;
 use Inertia\Inertia;
 
 // UI-001 MF-IM-001 Registrasi Pasien Baru
 Route::get('/registrasi', fn () => Inertia::render('Auth/Registrasi'))->name('registrasi');
-Route::post('/registrasi', [AuthPasienController::class, 'daftar'])->name('registrasi.simpan');
+Route::post('/registrasi', [RegistrasiController::class, 'kirimDataRegistrasi'])->name('registrasi.simpan');
 
 // UI-002 MF-IM-002 Login
 Route::get('/login', [AuthPasienController::class, 'login'])->name('login');

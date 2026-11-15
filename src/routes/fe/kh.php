@@ -6,6 +6,7 @@
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\Pasien\PortalPasienController;
+use App\Http\Controllers\Dokter\DiagnosisController;
 use App\Http\Middleware\PasienSession;
 
 // UI-007 KH-IM-001 Penjadwalan Poli
@@ -24,3 +25,5 @@ Route::inertia('/dokter/jadwal-saya', 'Dokter/JadwalSaya')->name('dokter.jadwal-
 // UI-011 KH-IM-005 Form Diagnosis
 Route::get('/dokter/form-diagnosis/{antrean?}', fn ($antrean = null) => Inertia::render('Dokter/FormDiagnosis', ['antreanId' => $antrean]))
     ->name('dokter.form-diagnosis');
+Route::post('/dokter/diagnosis/{idPemeriksaan}', [DiagnosisController::class, 'store'])
+    ->name('dokter.diagnosis.store');

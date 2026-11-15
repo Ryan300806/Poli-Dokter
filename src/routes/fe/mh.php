@@ -5,15 +5,17 @@
 
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use App\Http\Controllers\Dokter\RMEController;
 
 // UI-012 MH-IM-001 Jadwal Saya Pasien (termasuk form ubah jadwal)
 Route::middleware(\App\Http\Middleware\PasienSession::class)->get('/pasien/jadwal-saya', [\App\Http\Controllers\Pasien\PortalPasienController::class, 'riwayat'])->name('pasien.jadwal-saya');
 
 // UI-014 MH-IM-003 Antrean Periksa
-Route::inertia('/dokter/antrean-periksa', 'Dokter/AntreanPeriksa')->name('dokter.antrean-periksa');
+Route::get('/dokter/antrean-periksa', [RMEController::class, 'antreanPeriksa'])->name('dokter.antrean-periksa');
+Route::get('/dokter/riwayat-medis', [RMEController::class, 'daftarRiwayatMedis'])->name('dokter.riwayat-medis.index');
 
 // UI-015 MH-IM-004 Riwayat Medis / Dasbor
-Route::get('/dokter/riwayat-medis/{antrean?}', fn ($antrean = null) => Inertia::render('Dokter/RiwayatMedis', ['antreanId' => $antrean]))
+Route::get('/dokter/riwayat-medis/{idPasien}', [RMEController::class, 'requestRiwayatMedis'])
     ->name('dokter.riwayat-medis');
 
 // UI-016 MH-IM-005 Antrean Triage

@@ -12,7 +12,7 @@ import { toast } from '../../Components/ui/Toast';
 import { pasienRiwayatDemo } from '../../data/dokterDemo';
 import { rute } from '../../lib/rute';
 
-function ProfilPasien({ pasien, onKembali }) {
+function ProfilPasien({ pasien, onKembali, riwayatMedis, triageTerbaru }) {
   return (
     <>
       <div className="flex items-center justify-between">
@@ -45,7 +45,7 @@ function ProfilPasien({ pasien, onKembali }) {
             <Badge tone="success" className="mt-3">Status Stabil</Badge>
             <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-3">
               {[
-                ['Tekanan Darah', `${pasien.td} mmHg`], ['Suhu Tubuh', `${pasien.suhu} °C`], ['Detak Nadi', `${pasien.nadi} BPM`],
+                ['Tekanan Darah', `${triageTerbaru?.tekanan_darah ?? pasien.td} mmHg`], ['Suhu Tubuh', `${triageTerbaru?.suhu ?? pasien.suhu} °C`], ['Detak Nadi', `${pasien.nadi} BPM`],
                 ['Laju Napas', `${pasien.respirasi} x/menit`], ['Saturasi (SpO2)', pasien.spo2], ['Antropometri', `${pasien.berat} kg / ${pasien.tinggi} cm`],
               ].map(([label, value]) => <div key={label} className="rounded-lg bg-surface-low p-3"><small className="block text-[9px] uppercase text-ink-muted">{label}</small><b className="text-base">{value}</b></div>)}
             </div>
@@ -57,7 +57,7 @@ function ProfilPasien({ pasien, onKembali }) {
             <p className="mt-3 text-[9px] font-semibold uppercase tracking-wide text-ink-muted">Keluhan utama (anamnesis hari ini)</p>
             <p className="mt-1 text-sm leading-6">{pasien.keluhan}</p>
             <div className="mt-4 grid gap-4 border-t border-line pt-4 md:grid-cols-2">
-              <div><p className="text-[9px] font-semibold uppercase tracking-wide text-ink-muted">Riwayat Penyakit Dahulu (RPD)</p><ul className="mt-2 list-inside list-disc space-y-1 text-[11px]">{pasien.penyakit.map((item) => <li key={item}>{item}</li>)}</ul></div>
+              <div><p className="text-[9px] font-semibold uppercase tracking-wide text-ink-muted">Riwayat Penyakit Dahulu (RPD)</p><ul className="mt-2 list-inside list-disc space-y-1 text-[11px]">{(riwayatMedis?.riwayat_penyakit ? [riwayatMedis.riwayat_penyakit] : pasien.penyakit).map((item) => <li key={item}>{item}</li>)}</ul></div>
               <div><p className="text-[9px] font-semibold uppercase tracking-wide text-danger">Rincian Alergi &amp; Reaksi Obat</p><p className="mt-2 rounded-lg bg-danger-light p-3 text-[11px] text-danger"><b>{pasien.alergi[0]}</b><br />Riwayat alergi tercatat. Verifikasi sebelum memberikan obat.</p></div>
             </div>
             <p className="mt-4 border-t border-line pt-3 text-[11px]"><b>Obat rutin saat ini:</b> {pasien.obatRutin}</p>
@@ -87,24 +87,48 @@ function ProfilPasien({ pasien, onKembali }) {
   );
 }
 
-export default function RiwayatMedis({ antreanId }) {
+export default function RiwayatMedis({ antreanId, pasien: dataPasien, daftarPasien, riwayatMedis = null, triageTerbaru = null }) {
   const [kata, setKata] = useState('');
-  const pasienTerpilih = antreanId
+  const pasienTerpilih = dataPasien ? {
+    id: String(dataPasien.id_pasien),
+    nama: dataPasien.nama_lengkap,
+    foto: '/images/figma/patient-example.jpeg',
+    rm: `P-${String(dataPasien.id_pasien).padStart(4, '0')}`,
+    jaminan: 'Data penjamin belum tersedia',
+    nik: dataPasien.nik,
+    rujukan: '—',
+    umur: dataPasien.tanggal_lahir ? Math.max(0, new Date().getFullYear() - new Date(dataPasien.tanggal_lahir).getFullYear()) : '—',
+    tanggalLahir: dataPasien.tanggal_lahir ?? '—',
+    jk: dataPasien.jenis_kelamin === 'P' ? 'Perempuan' : 'Laki-laki',
+    golDarah: dataPasien.golongan_darah ?? 'Golongan darah belum tercatat',
+    telepon: dataPasien.kontak_darurat ?? '—',
+    alergi: riwayatMedis?.alergi && riwayatMedis.alergi !== '-' ? [riwayatMedis.alergi] : ['Tidak ada data alergi'],
+    antrean: triageTerbaru?.id_antrean ?? '—',
+    td: triageTerbaru?.tekanan_darah ?? '—',
+    suhu: triageTerbaru?.suhu ?? '—',
+    nadi: '—', respirasi: '—', spo2: '—', berat: triageTerbaru?.berat_badan ?? '—', tinggi: '—',
+    catatanPerawat: 'Catatan tidak tersedia pada data observasi ini.',
+    keluhan: 'Keluhan belum tercatat.',
+    penyakit: riwayatMedis?.riwayat_penyakit && riwayatMedis.riwayat_penyakit !== 'Nihil' ? [riwayatMedis.riwayat_penyakit] : ['Nihil'],
+    obatRutin: 'Data obat rutin belum tersedia.',
+    riwayat: [],
+  } : antreanId
     ? pasienRiwayatDemo.find((item) => item.id === String(antreanId)) ?? pasienRiwayatDemo[0]
     : null;
-  const daftar = useMemo(() => pasienRiwayatDemo.filter((pasien) => {
+  const sumberDaftar = Array.isArray(daftarPasien) ? daftarPasien : pasienRiwayatDemo;
+  const daftar = useMemo(() => sumberDaftar.filter((pasien) => {
     const q = kata.trim().toLowerCase();
     return !q || pasien.nama.toLowerCase().includes(q) || pasien.rm.toLowerCase().includes(q) || pasien.nik.includes(q);
-  }), [kata]);
+  }), [kata, sumberDaftar]);
 
   return (
     <AppLayout role="dokter" title="Riwayat Medis">
       {pasienTerpilih ? (
-        <><div className="flex justify-end"><Badge tone="info">Data demo</Badge></div><ProfilPasien pasien={pasienTerpilih} onKembali={() => router.visit(rute.dokter.riwayatMedis())} /></>
+        <><div className="flex justify-end"><Badge tone={dataPasien ? 'success' : 'info'}>{dataPasien ? 'Data rekam medis' : 'Data demo'}</Badge></div><ProfilPasien pasien={pasienTerpilih} riwayatMedis={riwayatMedis} triageTerbaru={triageTerbaru} onKembali={() => router.visit(rute.dokter.riwayatMedis())} /></>
       ) : (
         <>
           <div className="flex flex-wrap items-end justify-between gap-4">
-            <div><h1 className="flex items-center gap-2 text-[28px] font-bold">Pasien Dalam Antrean <Badge tone="info">Data demo</Badge></h1><p className="text-[13px] text-ink-muted">Pilih pasien untuk melihat riwayat medis dan informasi klinis.</p></div>
+            <div><h1 className="flex items-center gap-2 text-[28px] font-bold">Daftar Rekam Medis <Badge tone={Array.isArray(daftarPasien) ? 'success' : 'info'}>{Array.isArray(daftarPasien) ? 'Data server' : 'Data demo'}</Badge></h1><p className="text-[13px] text-ink-muted">Pilih pasien untuk melihat riwayat medis dan informasi klinis.</p></div>
             <div className="w-full md:w-80"><Input icon={Search} value={kata} onChange={(e) => setKata(e.target.value)} placeholder="Cari nama, No. RM, atau NIK..." aria-label="Cari pasien" /></div>
           </div>
           <div className="space-y-4">
@@ -123,7 +147,7 @@ export default function RiwayatMedis({ antreanId }) {
             </article>)}
             {daftar.length === 0 && <p className="rounded-xl bg-white p-10 text-center text-sm text-ink-muted">Tidak ada pasien yang cocok dengan pencarian.</p>}
           </div>
-          <p className="text-xs text-ink-muted">Menampilkan {daftar.length} data pasien demo</p>
+          <p className="text-xs text-ink-muted">Menampilkan {daftar.length} data pasien {Array.isArray(daftarPasien) ? 'server' : 'demo'}</p>
         </>
       )}
     </AppLayout>
