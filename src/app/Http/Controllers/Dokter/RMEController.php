@@ -69,15 +69,20 @@ class RMEController extends Controller
         return back()->with('success', 'Status antrean pasien diperbarui.');
     }
 
-    public function requestRiwayatMedis(int $idPasien): Response
+    public function requestRiwayatMedis(\Illuminate\Http\Request $request, int $idPasien): Response
     {
         $pasien = DataPasien::query()->whereKey($idPasien)->firstOrFail();
         $riwayat = DataRekamMedis::ambilRiwayatDanAlergi($idPasien)
             ?? ['id_pasien' => $idPasien, 'riwayat_penyakit' => 'Nihil', 'alergi' => '-'];
-        $triage = DataObservasi::ambilTriageTerbaru($idPasien);
+        $idAntrean = $request->integer('antreanId') ?: null;
+        $antrean = $idAntrean ? DataReservasi::konteksPemeriksaan($idAntrean) : null;
+        abort_if($idAntrean && (! $antrean || (int) $antrean->id_pasien !== $idPasien), 404);
+        $triage = $idAntrean
+            ? (DataObservasi::ambilTerbaruUntukAntrean($idAntrean)?->toArray() ?? [])
+            : DataObservasi::ambilTriageTerbaru($idPasien);
 
         return Inertia::render('Dokter/RiwayatMedis', [
-            'antreanId' => $triage['id_antrean'] ?? null,
+            'antreanId' => $antrean->id_antrean ?? $triage['id_antrean'] ?? null,
             'pasien' => $pasien->only([
                 'id_pasien', 'nik', 'nama_lengkap', 'tempat_lahir', 'tanggal_lahir',
                 'jenis_kelamin', 'golongan_darah', 'kontak_darurat',

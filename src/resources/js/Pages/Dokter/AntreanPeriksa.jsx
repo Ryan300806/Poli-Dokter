@@ -129,6 +129,7 @@ export default function AntreanPeriksa({ dokter = {}, antrean: antreanDariBacken
 
   function bukaRM(p) {
     router.visit(rute.dokter.riwayatMedis(p.pasienId ?? p.id), {
+      data: { antreanId: p.id },
       onError: () => toast.error('Gagal mengambil riwayat medis, coba lagi.'), // pesan dari Modul 2
     });
   }
