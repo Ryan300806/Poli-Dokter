@@ -7,7 +7,7 @@ import { cn } from '../../lib/cn';
 
 const LEBAR = { sm: 'max-w-sm', md: 'max-w-md', lg: 'max-w-xl', xl: 'max-w-3xl' };
 
-export default function Modal({ open, onClose, title, description, size = 'md', footer, children }) {
+export default function Modal({ open, onClose, title, description, icon: Ikon, size = 'md', footer, children }) {
   useEffect(() => {
     if (!open) return undefined;
     const tekan = (e) => e.key === 'Escape' && onClose?.();
@@ -18,12 +18,15 @@ export default function Modal({ open, onClose, title, description, size = 'md', 
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={title}>
-      <div className="absolute inset-0 bg-ink/40" onClick={onClose} />
+      <div className="absolute inset-0 bg-ink/40 backdrop-blur-sm" onClick={onClose} />
       <div className={cn('relative w-full rounded-2xl bg-white shadow-xl', LEBAR[size])}>
         <div className="flex items-start justify-between gap-4 px-6 pt-5">
-          <div>
-            <h2 className="text-lg font-bold text-ink">{title}</h2>
-            {description && <p className="mt-1 text-[13px] text-ink-soft">{description}</p>}
+          <div className="flex items-start gap-3">
+            {Ikon && <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-surface-low text-ink"><Ikon className="size-5"/></span>}
+            <div>
+              <h2 className="pt-1 text-lg font-bold text-ink">{title}</h2>
+              {description && <p className="mt-1 text-[13px] text-ink-soft">{description}</p>}
+            </div>
           </div>
           <button type="button" onClick={onClose} aria-label="Tutup"
             className="rounded-lg p-1.5 text-ink-muted hover:bg-surface-low">

@@ -15,12 +15,19 @@ class AuthPasienController extends Controller
 {
     public function login(): InertiaResponse|RedirectResponse
     {
-        return request()->session()->has('pasien_id') ? redirect()->route('pasien.beranda') : Inertia::render('Auth/Login');
+        $request = request();
+        $id = $request->session()->get('pasien_id') ?: filter_var($request->cookie('remember_pasien'), FILTER_VALIDATE_INT);
+        if ($id && DB::table('pasien')->where('id_pasien', $id)->exists()) {
+            $request->session()->regenerate();
+            $request->session()->put('pasien_id', $id);
+            return redirect()->route('pasien.beranda');
+        }
+        return Inertia::render('Auth/Login');
     }
 
     public function masuk(Request $request): RedirectResponse
     {
-        $data = $request->validate(['nik' => ['required', 'digits:16'], 'kataSandi' => ['required', 'string']]);
+        $data = $request->validate(['nik' => ['required', 'digits:16'], 'kataSandi' => ['required', 'string'], 'ingat' => ['nullable', 'boolean']]);
         $pasien = DB::table('pasien')->where('nik', $data['nik'])->first();
 
         if (!$pasien || !Hash::check($data['kataSandi'], $pasien->password)) {
@@ -30,7 +37,12 @@ class AuthPasienController extends Controller
         $request->session()->regenerate();
         $request->session()->put('pasien_id', $pasien->id_pasien);
 
-        return redirect()->intended(route('pasien.beranda'))->with('success', 'Selamat datang kembali.');
+        $response = redirect()->intended(route('pasien.beranda'))->with('success', 'Selamat datang kembali.');
+        if ($request->boolean('ingat')) {
+            return $response->withCookie(cookie('remember_pasien', (string) $pasien->id_pasien, 60 * 24 * 30, '/', null, (bool) config('session.secure'), true, false, 'lax'));
+        }
+
+        return $response->withCookie(cookie()->forget('remember_pasien'));
     }
 
     public function daftar(Request $request): RedirectResponse
@@ -69,6 +81,6 @@ class AuthPasienController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('login');
+        return redirect()->route('login')->withCookie(cookie()->forget('remember_pasien'));
     }
 }

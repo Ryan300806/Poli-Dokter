@@ -10,9 +10,8 @@ import { toast } from '../../Components/ui/Toast';
 import { cn } from '../../lib/cn';
 
 // URL tujuan. Kalau lib/rute.js sudah punya rutenya, ganti dengan itu.
-const URL_UTAMA = '/pasien/beranda';
+const URL_UTAMA = '/';
 const URL_REGISTRASI = '/registrasi';
-const URL_BERANDA_PASIEN = '/pasien/beranda';
 
 const NIK_PANJANG = 16;
 const SANDI_MINIMAL = 8;

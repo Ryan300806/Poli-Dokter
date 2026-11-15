@@ -8,12 +8,21 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Carbon\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class PortalPasienController extends Controller
 {
     private function pasienId(Request $request): int { return (int) $request->session()->get('pasien_id'); }
+
+    private function intervalLabel(Carbon $terakhir): string
+    {
+        $detik = max(0, (int) now()->diffInSeconds($terakhir));
+        if ($detik >= 86400) return floor($detik / 86400).' hari';
+        if ($detik >= 3600) return floor($detik / 3600).' jam';
+        return max(1, (int) floor($detik / 60)).' menit';
+    }
 
     private function reservasiQuery(int $id)
     {
@@ -128,16 +137,43 @@ class PortalPasienController extends Controller
         $riwayat = DB::table('reservasi as r')->join('dokter as d','d.id_dokter','=','r.id_dokter')->join('poli as p','p.id_poli','=','d.id_poli')
             ->where('r.id_pasien',$pasien->id_pasien)->whereIn('r.status_reservasi',['selesai'])->orderByDesc('r.tanggal')->limit(4)
             ->select('r.id_reservasi','r.tanggal','r.status_reservasi','d.nama_dokter','p.nama_poli')->get();
-        return Inertia::render('Pasien/Profil',['pasien'=>$pasien,'riwayat'=>$riwayat]);
+        $terakhir = $pasien->last_profile_update_at ? Carbon::parse($pasien->last_profile_update_at) : null;
+        $tersediaPada = $terakhir?->copy()->addDays(365);
+        $infoPembaruan = [
+            'lastUpdatedAt' => $terakhir?->toIso8601String(),
+            'nextAvailableAt' => $tersediaPada?->toIso8601String(),
+            'canUpdate' => !$tersediaPada || !$tersediaPada->isFuture(),
+            'daysElapsed' => $terakhir ? max(0, (int) $terakhir->diffInDays(now())) : null,
+        ];
+        return Inertia::render('Pasien/Profil',['pasien'=>$pasien,'riwayat'=>$riwayat,'infoPembaruan'=>$infoPembaruan]);
     }
 
     public function updateProfil(Request $request): RedirectResponse
     {
         $data = $request->validate(['nama_lengkap'=>['required','string','max:100'],'tempat_lahir'=>['required','string','max:50'],
             'tanggal_lahir'=>['required','date','before_or_equal:today'],'alamat'=>['required','string','max:255'],
-            'jenis_kelamin'=>['required','in:L,P'],'kontak_darurat'=>['required','string','max:20'],
+            'jenis_kelamin'=>['required','in:L,P'],'golongan_darah'=>['nullable','in:A+,A-,B+,B-,AB+,AB-,O+,O-'],
+            'kontak_darurat'=>['required','string','max:20'],
             'nama_kontak_darurat'=>['required','string','max:100']]);
-        DB::table('pasien')->where('id_pasien',$this->pasienId($request))->update($data);
-        return back()->with('success','Profil pasien berhasil diperbarui.');
+        $hasil = DB::transaction(function () use ($data, $request) {
+            $pasien = DB::table('pasien')->where('id_pasien',$this->pasienId($request))->lockForUpdate()->first();
+            $terakhir = $pasien->last_profile_update_at ? Carbon::parse($pasien->last_profile_update_at) : null;
+            $tersediaPada = $terakhir?->copy()->addDays(365);
+            if ($tersediaPada && $tersediaPada->isFuture()) {
+                return ['status'=>'blocked','lastUpdatedAt'=>$terakhir->toIso8601String(),
+                    'nextAvailableAt'=>$tersediaPada->toIso8601String(),'daysElapsed'=>max(0,(int)$terakhir->diffInDays(now())),
+                    'intervalLabel'=>$this->intervalLabel($terakhir)];
+            }
+            $data['last_profile_update_at'] = now();
+            DB::table('pasien')->where('id_pasien',$pasien->id_pasien)->update($data);
+            return ['status'=>'success','lastUpdatedAt'=>now()->toIso8601String(),
+                'nextAvailableAt'=>now()->addDays(365)->toIso8601String(),'daysElapsed'=>0,'intervalLabel'=>'0 hari'];
+        });
+        if ($hasil['status'] === 'blocked') {
+            return back()->withErrors(['pemutakhiran' => 'Pemutakhiran data pasien hanya dapat dilakukan satu kali setiap 365 hari.'])
+                ->with('profileUpdateResult', $hasil);
+        }
+        return back()->with('success','Profil pasien berhasil diperbarui.')
+            ->with('profileUpdateResult', $hasil);
     }
 }
