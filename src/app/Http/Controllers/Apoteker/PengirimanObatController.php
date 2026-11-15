@@ -16,9 +16,10 @@ class PengirimanObatController extends Controller
         $resep = EResep::getEResep($idEResep);
         abort_if($resep === null, 404);
 
+        $pasien = DB::table('pasien')->where('id_pasien', $resep['id_pasien'])->first(['id_pasien', 'nama_lengkap', 'nik', 'tanggal_lahir']);
         return [
             ...$resep,
-            'nama_pasien' => DB::table('pasien')->where('id_pasien', $resep['id_pasien'])->value('nama_lengkap'),
+            'nama_pasien' => $pasien->nama_lengkap ?? null,
             'items' => array_map(fn ($obat) => [
                 ...$obat, 'nama' => $obat['nama_obat'], 'satuan' => $obat['jumlah_obat'], 'aturan' => $obat['aturan_pakai'],
             ], $resep['daftar_obat']),
@@ -27,12 +28,12 @@ class PengirimanObatController extends Controller
                 'siap_diserahkan' => 'Siap Diserahkan', 'ditolak' => 'Ditolak', 'selesai' => 'Obat Sudah Diberikan',
             ][$resep['status_e_resep']] ?? $resep['status_e_resep'],
             'id' => (string) $resep['id_e_resep'],
-            'pasien' => DB::table('pasien')->where('id_pasien', $resep['id_pasien'])->value('nama_lengkap'),
-            'rm' => 'P-' . str_pad((string) $resep['id_pasien'], 4, '0', STR_PAD_LEFT),
+            'pasien' => $pasien->nama_lengkap ?? null,
+            'id_pasien' => $pasien->id_pasien ?? null,
+            'nik' => $pasien->nik ?? null,
+            'tanggal_lahir' => $pasien->tanggal_lahir ?? null,
             'dokter' => DB::table('diagnosis as dg')->join('dokter as d', 'd.id_dokter', '=', 'dg.id_dokter')->where('dg.id_diagnosis', $resep['id_diagnosis'])->value('d.nama_dokter'),
             'tanggal' => $resep['waktu_kirim'],
-            'jaminan' => '—',
-            'dibaca' => true,
         ];
     }
 

@@ -44,6 +44,11 @@ class DataObservasi extends Model
         return $observasi?->only(['id_observasi', 'id_antrean', 'tekanan_darah', 'suhu', 'berat_badan', 'waktu_observasi']);
     }
 
+    public static function ambilTerbaruUntukAntrean(int $idAntrean): ?self
+    {
+        return static::query()->where('id_antrean', $idAntrean)->orderByDesc('waktu_observasi')->first();
+    }
+
     public static function updateDataObservasi(int $idObservasi, array $dataBaru): bool
     {
         return static::query()->whereKey($idObservasi)->update([

@@ -1,7 +1,7 @@
 <?php
 
 // routes/fe/mh.php | Rute halaman FE milik MH (di-load otomatis dari routes/web.php)
-// Sementara memakai data contoh dari FE. BE akan mengganti closure dengan Controller tanpa mengubah URL dan nama rute.
+// Seluruh rute operasional diarahkan ke controller dan data database.
 
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -13,6 +13,7 @@ Route::middleware(\App\Http\Middleware\PasienSession::class)->get('/pasien/jadwa
 
 // UI-014 MH-IM-003 Antrean Periksa
 Route::get('/dokter/antrean-periksa', [RMEController::class, 'antreanPeriksa'])->name('dokter.antrean-periksa');
+Route::post('/dokter/antrean-periksa/{idAntrean}/panggil', [RMEController::class, 'panggilPasien'])->name('dokter.antrean-periksa.panggil');
 Route::get('/dokter/riwayat-medis', [RMEController::class, 'daftarRiwayatMedis'])->name('dokter.riwayat-medis.index');
 
 // UI-015 MH-IM-004 Riwayat Medis / Dasbor

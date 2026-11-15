@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Dokter;
 
 use App\Http\Controllers\Controller;
 use App\Models\DataDiagnosis;
+use App\Models\DataObservasi;
+use App\Models\DataReservasi;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -12,6 +14,28 @@ use Illuminate\Validation\ValidationException;
 /** Pengendali penyimpanan diagnosis sesuai CD-006. */
 class DiagnosisController extends Controller
 {
+    public function form(int $antrean): \Inertia\Response
+    {
+        $row = DataReservasi::konteksPemeriksaan($antrean);
+        abort_if(! $row, 404);
+        $observasi = DataObservasi::ambilTerbaruUntukAntrean($antrean);
+        $observasi = $observasi ? $observasi->toArray() : [];
+        $riwayat = \App\Models\DataRekamMedis::ambilRiwayatDanAlergi((int) $row->id_pasien) ?? [];
+
+        return \Inertia\Inertia::render('Dokter/FormDiagnosis', [
+            'antreanId' => (int) $row->id_antrean,
+            'pasienServer' => [
+                'id' => (int) $row->id_pasien, 'nama' => $row->nama_lengkap, 'nik' => $row->nik,
+                'umur' => $row->tanggal_lahir ? now()->diffInYears($row->tanggal_lahir) : null,
+                'jk' => $row->jenis_kelamin === 'P' ? 'Perempuan' : 'Laki-laki',
+                'golonganDarah' => $row->golongan_darah, 'poli' => $row->nama_poli,
+                'antrean' => $row->nomor_antrean, 'waktu' => $row->tanggal_antrean,
+                'tekananDarah' => $observasi['tekanan_darah'] ?? null, 'suhu' => $observasi['suhu'] ?? null,
+                'berat' => $observasi['berat_badan'] ?? null, 'alergi' => $riwayat['alergi'] ?? null,
+            ],
+        ]);
+    }
+
     public function store(Request $request, int $idPemeriksaan): RedirectResponse
     {
         $data = $request->validate([
@@ -35,10 +59,7 @@ class DiagnosisController extends Controller
             throw ValidationException::withMessages(['namaDiagnosis' => 'Diagnosis dan rencana tindakan wajib diisi.']);
         }
 
-        $idDokter = DB::table('antrean as a')
-            ->join('reservasi as r', 'r.id_reservasi', '=', 'a.id_reservasi')
-            ->where('a.id_antrean', $idPemeriksaan)
-            ->value('r.id_dokter');
+        $idDokter = DataReservasi::getDokterAntrean($idPemeriksaan);
 
         if (! $idDokter) {
             throw ValidationException::withMessages(['idPemeriksaan' => 'Antrean pemeriksaan tidak ditemukan atau belum terhubung ke dokter.']);

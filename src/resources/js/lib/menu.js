@@ -12,7 +12,6 @@ export const PERAN = {
   pasien: {
     judulMenu: 'Portal Pasien',
     labelPeran: 'Pasien',
-    demo: { nama: 'Karina', peran: 'Pasien' },
     menu: [
       { label: 'Beranda Pasien', ikon: Home, href: rute.pasien.beranda },
       { label: 'Penjadwalan Poli', ikon: CalendarCheck, href: rute.pasien.penjadwalanPoli },
@@ -23,19 +22,17 @@ export const PERAN = {
   dokter: {
     judulMenu: 'Layanan Dokter',
     labelPeran: 'Dokter Spesialis Poli',
-    demo: { nama: 'Ns. Siti Rahma, S.Kep', peran: 'Dokter', avatar: '/images/figma/staff-avatar.jpeg' },
     menu: [
       { label: 'Beranda', ikon: LayoutGrid, href: rute.dokter.antreanPeriksa },
       { label: 'Jadwal Saya', ikon: CalendarDays, href: rute.dokter.jadwalSaya },
       { label: 'Riwayat Medis', ikon: History, href: rute.dokter.riwayatMedis() },
-      { label: 'Form Diagnosis', ikon: ClipboardList, href: rute.dokter.formDiagnosis() },
-      { label: 'E-Resep', ikon: FileText, href: rute.dokter.formEResep() },
+      { label: 'Form Diagnosis', ikon: ClipboardList, href: null },
+      { label: 'E-Resep', ikon: FileText, href: null },
     ],
   },
   perawat: {
     judulMenu: 'Layanan Perawat',
     labelPeran: 'Perawat',
-    demo: { nama: 'Ns. Siti Rahma, S.Kep', peran: 'Perawat', avatar: '/images/figma/staff-avatar.jpeg' },
     menu: [
       { label: 'Beranda', ikon: LayoutGrid, href: rute.perawat.antreanTriage },
       { label: 'Triase Rawat Jalan', ikon: BriefcaseMedical, href: rute.perawat.formObservasi() },
@@ -44,7 +41,6 @@ export const PERAN = {
   apoteker: {
     judulMenu: 'Pelayanan Rawat Jalan',
     labelPeran: 'Apoteker',
-    demo: { nama: 'apt. Siti Rahma, S.Farm', peran: 'Apoteker Farmasi', avatar: '/images/figma/staff-avatar.jpeg' },
     menu: [
       { label: 'Beranda', ikon: LayoutGrid, href: rute.apoteker.notifikasiEResep },
     ],

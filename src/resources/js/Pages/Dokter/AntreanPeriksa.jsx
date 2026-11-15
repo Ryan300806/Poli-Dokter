@@ -1,7 +1,7 @@
 // MH-IM-003 | UI-014 | Halaman Antrean Periksa (Dashboard Dokter) | Penulis: MH
 // Sumber desain: Figma node 240:1074. Sumber kebutuhan: Modul 2 bagian 3.7 (UI-014).
 // Rute: GET /dokter/antrean-periksa  (routes/fe/mh.php, nama rute dokter.antrean-periksa)
-// Props dari BE (opsional, bila belum ada dipakai data contoh): { dokter, antrean }
+// Props dari BE: { dokter, antrean }
 import { useEffect, useMemo, useState } from 'react';
 import { router } from '@inertiajs/react';
 import {
@@ -22,7 +22,6 @@ import { rute } from '../../lib/rute';
 import { cn } from '../../lib/cn';
 import { inisial, tanggalHariIni } from '../../lib/format';
 import { STATUS_PEMERIKSAAN, OPSI_FILTER_STATUS } from '../../lib/status';
-import { antreanDummy, dokterContoh } from '../../data/antreanDummy';
 
 const JUMLAH_PER_HALAMAN = 5;
 const INTERVAL_SINKRON_DETIK = 30;
@@ -68,24 +67,21 @@ function SelTriage({ p }) {
   if (!p.triage) {
     return <Badge tone="muted">Belum ada data triage</Badge>;
   }
-  const { td, nadi, suhu } = p.triage;
+  const { td, suhu } = p.triage;
   return (
     <div className="flex flex-col items-start gap-1">
       <Badge tone="success" check className="font-medium">Triage Selesai</Badge>
       <div className="flex items-center gap-2 text-[13px] leading-[18px] text-ink-soft">
         <Vital label="TD" nilai={td} bahaya={tdPerluPerhatian(td)} />
         <span className="text-ink-muted">•</span>
-        <Vital label="Nadi" nilai={`${nadi}x/m`} />
-        <span className="text-ink-muted">•</span>
-        <Vital label="Suhu" nilai={`${suhu.toFixed(1)}°C`} />
+        <Vital label="Suhu" nilai={`${Number(suhu).toFixed(1)}°C`} />
       </div>
     </div>
   );
 }
 
-export default function AntreanPeriksa({ dokter = dokterContoh, antrean: antreanDariBackend }) {
-  const dataAntreanDemo = !Array.isArray(antreanDariBackend);
-  const antrean = dataAntreanDemo ? antreanDummy : antreanDariBackend;
+export default function AntreanPeriksa({ dokter = {}, antrean: antreanDariBackend }) {
+  const antrean = Array.isArray(antreanDariBackend) ? antreanDariBackend : [];
   const [kata, setKata] = useState('');
   const [filter, setFilter] = useState('semua');
   const [halaman, setHalaman] = useState(1);
@@ -105,7 +101,7 @@ export default function AntreanPeriksa({ dokter = dokterContoh, antrean: antrean
   const terfilter = useMemo(() => {
     const q = kata.trim().toLowerCase();
     return antrean.filter((p) => (filter === 'semua' || p.status === filter)
-      && (!q || p.nama.toLowerCase().includes(q) || p.rm.toLowerCase().includes(q)
+      && (!q || p.nama.toLowerCase().includes(q) || String(p.rm).toLowerCase().includes(q)
         || (p.nik ?? '').includes(q)));
   }, [antrean, kata, filter]);
 
@@ -115,10 +111,6 @@ export default function AntreanPeriksa({ dokter = dokterContoh, antrean: antrean
   const baris = terfilter.slice(mulai, mulai + JUMLAH_PER_HALAMAN);
 
   function muatUlang(senyap = false) {
-    if (dataAntreanDemo) {
-      if (!senyap) toast.info('Antrean ini menggunakan data demo dan belum terhubung ke sumber server.');
-      return;
-    }
     setMemuat(true);
     router.reload({
       only: ['antrean'],
@@ -131,10 +123,9 @@ export default function AntreanPeriksa({ dokter = dokterContoh, antrean: antrean
 
   // Sinkronisasi otomatis tiap 30 detik (sesuai catatan di Figma)
   useEffect(() => {
-    if (dataAntreanDemo) return undefined;
     const id = setInterval(() => muatUlang(true), INTERVAL_SINKRON_DETIK * 1000);
     return () => clearInterval(id);
-  }, [dataAntreanDemo]);
+  }, []);
 
   function bukaRM(p) {
     router.visit(rute.dokter.riwayatMedis(p.pasienId ?? p.id), {
@@ -143,8 +134,10 @@ export default function AntreanPeriksa({ dokter = dokterContoh, antrean: antrean
   }
 
   function konfirmasiPanggil() {
-    toast.success(`Pasien ${dipanggil.no} atas nama ${dipanggil.nama} dipanggil ke ${dokter.ruang}.`);
-    setDipanggil(null);
+    router.post(`/dokter/antrean-periksa/${dipanggil.id}/panggil`, {}, {
+      onSuccess: () => { toast.success(`Antrean ${dipanggil.no} diperbarui.`); setDipanggil(null); router.reload({ only: ['antrean'] }); },
+      onError: () => toast.error('Status antrean gagal diperbarui.'),
+    });
   }
 
   return (
@@ -167,19 +160,18 @@ export default function AntreanPeriksa({ dokter = dokterContoh, antrean: antrean
           </>
         )}
       >
-        <span className="font-semibold text-ink">{dokter.nama}</span>
+        <span className="font-semibold text-ink">{dokter.nama ?? 'Dokter'}</span>
         <span className="text-ink-muted">•</span>
         <span className="flex items-center gap-1 font-medium text-brand">
-          <Building2 className="size-3" />{dokter.poli} ({dokter.ruang})
+          <Building2 className="size-3" />{dokter.poli ?? 'Poli'} ({dokter.ruang ?? 'Ruang pemeriksaan'})
         </span>
         <span className="text-ink-muted">•</span>
         <span className="flex items-center gap-1"><CalendarDays className="size-3" />Hari Ini: {tanggalHariIni()}</span>
-        {dataAntreanDemo && <Badge tone="info">Data demo</Badge>}
       </PageHeader>
 
       <section className="grid grid-cols-4 gap-4" aria-label="Ringkasan antrean">
         <StatCard label="Total Antrean" value={ringkasan.total} unit="pasien" icon={Users} />
-        <StatCard label="Sedang Diperiksa" value={ringkasan.sedang} unit={`di ${dokter.ruang}`} icon={ClipboardCheck} tone="brand" />
+        <StatCard label="Sedang Diperiksa" value={ringkasan.sedang} unit="pasien" icon={ClipboardCheck} tone="brand" />
         <StatCard label="Menunggu Giliran" value={ringkasan.menunggu} unit="di ruang tunggu" icon={ClipboardClock} />
         <StatCard label="Selesai Konsultasi" value={ringkasan.selesai} unit="terlayani" icon={CheckCircle2} />
       </section>
@@ -246,8 +238,8 @@ export default function AntreanPeriksa({ dokter = dokterContoh, antrean: antrean
                     </div>
                   </Td>
                   <Td>
-                    <p className="text-[13px] font-semibold leading-[18px] text-ink">{p.rm}</p>
-                    <p className="text-[10px] leading-[14px] text-ink-muted">{p.jaminan}</p>
+                    <p className="text-[13px] font-semibold leading-[18px] text-ink">ID Pasien {p.rm}</p>
+                    <p className="text-[10px] leading-[14px] text-ink-muted">NIK: {p.nik}</p>
                   </Td>
                   <Td>
                     <div className="flex items-center gap-3">
@@ -298,15 +290,13 @@ export default function AntreanPeriksa({ dokter = dokterContoh, antrean: antrean
         </div>
       </section>
 
-      <Callout aside={dataAntreanDemo ? 'Data demo' : `Sinkronisasi otomatis tiap ${INTERVAL_SINKRON_DETIK} dtk`}>
-        {dataAntreanDemo
-          ? 'Daftar antrean contoh ini tidak tersinkron ke server. Data operasional memerlukan dukungan backend.'
-          : <>Pasien yang telah menyelesaikan <b className="text-ink">Pemeriksaan Awal Triage</b> oleh Nakes akan otomatis naik statusnya dan dapat segera dipanggil ke {dokter.ruang}.</>}
+      <Callout aside={`Sinkronisasi otomatis tiap ${INTERVAL_SINKRON_DETIK} dtk`}>
+        <>Antrean diambil dari reservasi dan status triage yang tersimpan di database.</>
       </Callout>
 
       <Modal
         open={!!dipanggil} onClose={() => setDipanggil(null)} title="Panggil pasien?"
-        description={dipanggil && `${dipanggil.no} • ${dipanggil.nama} (${dipanggil.rm})`}
+        description={dipanggil && `${dipanggil.no} • ${dipanggil.nama} (ID Pasien ${dipanggil.rm})`}
         footer={(
           <>
             <Button variant="secondary" onClick={() => setDipanggil(null)}>Batal</Button>
@@ -314,14 +304,14 @@ export default function AntreanPeriksa({ dokter = dokterContoh, antrean: antrean
           </>
         )}
       >
-        Pasien akan dipanggil ke {dokter.ruang}. Pastikan pemeriksaan pasien sebelumnya sudah selesai.
+        Pasien akan dipanggil ke ruang pemeriksaan. Pastikan pemeriksaan pasien sebelumnya sudah selesai.
       </Modal>
 
       <Modal
         open={layarAntreanTerbuka}
         onClose={() => setLayarAntreanTerbuka(false)}
         title="Layar Antrean Ruang Periksa"
-        description="Pratinjau antrean poli saat ini (data demo)."
+        description="Pratinjau antrean poli saat ini."
         size="lg"
         footer={<Button onClick={() => setLayarAntreanTerbuka(false)}>Tutup</Button>}
       >

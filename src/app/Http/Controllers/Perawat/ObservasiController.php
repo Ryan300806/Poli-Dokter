@@ -22,13 +22,14 @@ class ObservasiController extends Controller
             $item = (object) $row;
             return [
                 'id' => (string) $item->id_antrean, 'idReservasi' => (string) $item->id_reservasi,
-                'no' => 'T-' . str_pad((string) $item->nomor_antrean, 2, '0', STR_PAD_LEFT),
-                'jam' => $item->tanggal, 'tunggu' => '—',
-                'rm' => 'P-' . str_pad((string) $item->id_pasien, 4, '0', STR_PAD_LEFT),
+                'no' => (string) $item->nomor_antrean,
+                'jam' => substr((string) $item->jam, 0, 5), 'tunggu' => null,
+                'rm' => (string) $item->id_pasien,
                 'nik' => $item->nik, 'nama' => $item->nama_lengkap,
                 'jk' => $item->jenis_kelamin === 'P' ? 'Perempuan' : 'Laki-laki',
                 'umur' => $item->tanggal_lahir ? now()->diffInYears($item->tanggal_lahir) : '—',
-                'jaminan' => '—', 'poli' => 'Rawat Jalan', 'kategori' => 'Umum',
+                'poli' => $item->nama_poli,
+                'kategori' => $item->tanggal_lahir ? (now()->diffInYears($item->tanggal_lahir) >= 60 ? 'Geriatri' : (now()->diffInYears($item->tanggal_lahir) < 12 ? 'Pediatri' : 'Umum')) : 'Umum',
                 'status' => $item->id_observasi ? 'Triage Selesai' : 'Belum Diukur',
                 'keluhan' => 'Belum ada catatan keluhan pada skema observasi.',
                 'id_observasi' => $item->id_observasi,
@@ -42,11 +43,10 @@ class ObservasiController extends Controller
     /** Reservasi dipetakan ke antrean terkait untuk membaca observasi. */
     public function getDataPasien(int $idReservasi): Response
     {
-        $reservasi = DB::table('reservasi as r')->join('antrean as a', 'a.id_reservasi', '=', 'r.id_reservasi')
-            ->where('r.id_reservasi', $idReservasi)->first(['r.id_pasien', 'a.id_antrean']);
+        $reservasi = DataReservasi::getAntreanUntukObservasi($idReservasi);
         abort_if(! $reservasi, 404);
         $pasien = DataPasien::ambilDataPasien((int) $reservasi->id_pasien);
-        $observasi = DB::table('observasi')->where('id_antrean', $reservasi->id_antrean)->orderByDesc('waktu_observasi')->first();
+        $observasi = DataObservasi::ambilTerbaruUntukAntrean((int) $reservasi->id_antrean);
         $td = $observasi?->tekanan_darah ? explode('/', $observasi->tekanan_darah) : ['', ''];
 
         return Inertia::render('Perawat/FormObservasi', [
@@ -55,8 +55,8 @@ class ObservasiController extends Controller
                 'id' => (string) $reservasi->id_antrean, 'nama' => $pasien['nama_lengkap'], 'nik' => $pasien['nik'],
                 'jk' => $pasien['jenis_kelamin'] === 'P' ? 'Perempuan' : 'Laki-laki',
                 'umur' => $pasien['tanggal_lahir'] ? now()->diffInYears($pasien['tanggal_lahir']) : '—',
-                'rm' => 'P-' . str_pad((string) $pasien['id_pasien'], 4, '0', STR_PAD_LEFT), 'jaminan' => '—',
-                'poli' => 'Rawat Jalan', 'no' => 'T-' . str_pad((string) $reservasi->id_antrean, 2, '0', STR_PAD_LEFT),
+                'rm' => (string) $pasien['id_pasien'],
+                'poli' => $reservasi->nama_poli ?? '—', 'no' => (string) $reservasi->nomor_antrean,
                 'keluhan' => '', 'tdSis' => $td[0] ?? '', 'tdDia' => $td[1] ?? '',
                 'suhu' => $observasi->suhu ?? '', 'berat' => $observasi->berat_badan ?? '',
                 'tinggi' => '', 'spo2' => '', 'nadi' => '', 'respirasi' => '', 'gcs' => 'Compos Mentis (GCS 15: E4V5M6)',
@@ -68,7 +68,7 @@ class ObservasiController extends Controller
     public function kirimDataObservasi(Request $request, int $idAntrean): RedirectResponse
     {
         $data = $this->validasiForm($request);
-        abort_unless(DB::table('antrean')->where('id_antrean', $idAntrean)->exists(), 404);
+        abort_unless(DataReservasi::antreanTersedia($idAntrean), 404);
         DataObservasi::simpanUntukAntrean($idAntrean, $data['tekananDarah'], (float) $data['suhu'], (float) $data['beratBadan']);
 
         return back()->with('success', 'Data observasi berhasil disimpan.');

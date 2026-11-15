@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\DataPasien;
 use App\Models\DataObservasi;
 use App\Models\DataRekamMedis;
-use Illuminate\Support\Facades\DB;
+use App\Models\DataReservasi;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -15,20 +15,11 @@ class RMEController extends Controller
 {
     public function daftarRiwayatMedis(): Response
     {
-        $pasien = DataPasien::query()
-            ->leftJoin('rekam_medis as rm', 'rm.id_pasien', '=', 'pasien.id_pasien')
-            ->orderBy('pasien.nama_lengkap')
-            ->get([
-                'pasien.id_pasien', 'pasien.nama_lengkap', 'pasien.nik', 'pasien.tanggal_lahir',
-                'pasien.jenis_kelamin', 'pasien.golongan_darah', 'pasien.kontak_darurat',
-                'rm.riwayat_penyakit', 'rm.alergi',
-            ])
-            ->map(fn ($item) => [
+        $pasien = DataRekamMedis::daftarPasienDenganRingkasan()->map(fn ($item) => [
                 'id' => (string) $item->id_pasien,
                 'nama' => $item->nama_lengkap,
-                'foto' => '/images/figma/patient-example.jpeg',
-                'rm' => 'P-' . str_pad((string) $item->id_pasien, 4, '0', STR_PAD_LEFT),
-                'jaminan' => 'Data penjamin belum tersedia',
+                'rm' => (string) $item->id_pasien,
+                'jaminan' => null,
                 'nik' => $item->nik,
                 'rujukan' => '—',
                 'umur' => $item->tanggal_lahir ? now()->diffInYears($item->tanggal_lahir) : '—',
@@ -49,30 +40,33 @@ class RMEController extends Controller
 
     public function antreanPeriksa(): Response
     {
-        $antrean = DB::table('antrean as a')
-            ->join('pasien as p', 'p.id_pasien', '=', 'a.id_pasien')
-            ->whereIn('a.status_antrean', ['menunggu', 'dipanggil', 'triage_selesai'])
-            ->orderBy('a.tanggal_antrean')
-            ->select('a.id_antrean', 'a.id_pasien', 'a.tanggal_antrean', 'a.status_antrean', 'p.nama_lengkap', 'p.nik')
-            ->get();
-
-        $antrean = $antrean->map(fn ($item) => [
+        $antrean = collect(DataReservasi::antreanPemeriksaanHariIni())->map(function ($item) {
+            $item = (object) $item;
+            $triage = DataObservasi::ambilTerbaruUntukAntrean((int) $item->id_antrean)?->toArray() ?? [];
+            return [
             'id' => (int) $item->id_antrean,
             'pasienId' => (int) $item->id_pasien,
-            'no' => 'A-' . str_pad((string) $item->id_antrean, 3, '0', STR_PAD_LEFT),
-            'jam' => $item->tanggal_antrean,
+            'no' => (string) $item->nomor_antrean,
+            'jam' => substr((string) $item->jam, 0, 5),
             'keterangan' => $item->status_antrean,
-            'rm' => 'P-' . str_pad((string) $item->id_pasien, 4, '0', STR_PAD_LEFT),
-            'jaminan' => '—',
+            'rm' => (string) $item->id_pasien,
             'nama' => $item->nama_lengkap,
-            'jk' => '—',
-            'umur' => '—',
+            'jk' => $item->jenis_kelamin === 'P' ? 'Perempuan' : 'Laki-laki',
+            'umur' => $item->tanggal_lahir ? now()->diffInYears($item->tanggal_lahir) : null,
             'status' => $item->status_antrean === 'dipanggil' ? 'sedang' : 'menunggu',
-            'triage' => null,
+            'triage' => $triage ? ['td' => $triage['tekanan_darah'], 'suhu' => $triage['suhu']] : null,
             'nik' => $item->nik,
-        ]);
+            ];
+        });
 
         return Inertia::render('Dokter/AntreanPeriksa', ['antrean' => $antrean]);
+    }
+
+    public function panggilPasien(int $idAntrean): \Illuminate\Http\RedirectResponse
+    {
+        abort_unless(DataReservasi::panggilAntrean($idAntrean), 404, 'Antrean tidak ditemukan atau tidak dapat dipanggil.');
+
+        return back()->with('success', 'Status antrean pasien diperbarui.');
     }
 
     public function requestRiwayatMedis(int $idPasien): Response

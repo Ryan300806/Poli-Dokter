@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\DataPasien;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 
@@ -26,22 +25,7 @@ class AuthPasienController extends Controller
 
     public function masuk(Request $request): RedirectResponse
     {
-        $data = $request->validate(['nik' => ['required', 'digits:16'], 'kataSandi' => ['required', 'string'], 'ingat' => ['nullable', 'boolean']]);
-        $pasien = DataPasien::cariAkun($data['nik']);
-
-        if (!$pasien || !DataPasien::validasiAkun($data['nik'], $data['kataSandi'])) {
-            throw ValidationException::withMessages(['nik' => 'NIK atau kata sandi tidak cocok.']);
-        }
-
-        $request->session()->regenerate();
-        $request->session()->put('pasien_id', $pasien['id_pasien']);
-
-        $response = redirect()->intended(route('pasien.beranda'))->with('success', 'Selamat datang kembali.');
-        if ($request->boolean('ingat')) {
-            return $response->withCookie(cookie('remember_pasien', (string) $pasien->id_pasien, 60 * 24 * 30, '/', null, (bool) config('session.secure'), true, false, 'lax'));
-        }
-
-        return $response->withCookie(cookie()->forget('remember_pasien'));
+        return app(LoginController::class)->login($request);
     }
 
     public function keluar(Request $request): RedirectResponse

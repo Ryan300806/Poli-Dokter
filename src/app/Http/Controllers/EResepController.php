@@ -61,22 +61,21 @@ class EResepController extends Controller
             ->join('pasien as p', 'p.id_pasien', '=', 'e.id_pasien')
             ->join('diagnosis as dg', 'dg.id_diagnosis', '=', 'e.id_diagnosis')
             ->join('dokter as d', 'd.id_dokter', '=', 'dg.id_dokter')
+            ->leftJoin('poli as po', 'po.id_poli', '=', 'd.id_poli')
             ->orderByDesc('e.waktu_kirim')
-            ->get(['e.id_e_resep', 'e.id_pasien', 'e.status_e_resep', 'e.waktu_kirim', 'p.nama_lengkap', 'dg.nama_diagnosis', 'd.nama_dokter'])
+            ->get(['e.id_e_resep', 'e.id_pasien', 'e.status_e_resep', 'e.waktu_kirim', 'p.nama_lengkap', 'dg.nama_diagnosis', 'd.nama_dokter', 'po.nama_poli'])
             ->map(fn ($item) => [
                 'id' => (string) $item->id_e_resep,
                 'pasienId' => (int) $item->id_pasien,
                 'pasien' => $item->nama_lengkap,
                 'dokter' => $item->nama_dokter,
-                'poli' => 'Rawat Jalan',
+                'poli' => $item->nama_poli,
                 'tanggal' => $item->waktu_kirim,
                 'diagnosis' => $item->nama_diagnosis,
                 'items' => collect(EResep::getInformasiObat((int) $item->id_e_resep))->map(fn ($obat) => [
                     ...$obat, 'nama' => $obat['nama_obat'], 'satuan' => $obat['jumlah_obat'], 'aturan' => $obat['aturan_pakai'],
                 ])->all(),
-                'jaminan' => '—',
                 'status' => $this->labelStatus($item->status_e_resep),
-                'dibaca' => false,
             ]);
 
         return \Inertia\Inertia::render('Apoteker/NotifikasiEResep', ['resepServer' => $resep]);
@@ -94,8 +93,7 @@ class EResepController extends Controller
             ...$resep,
             'pasien' => $pasien->nama_lengkap ?? '—',
             'pasienId' => $pasien->id_pasien ?? null,
-            'rm' => 'P-' . str_pad((string) $resep['id_pasien'], 4, '0', STR_PAD_LEFT),
-            'jaminan' => '—', 'poli' => 'Rawat Jalan',
+            'poli' => null,
             'dokter' => $diagnosis->nama_dokter ?? '—',
             'diagnosis' => $diagnosis->nama_diagnosis ?? '—',
             'tanggal' => $resep['waktu_kirim'],
@@ -110,8 +108,11 @@ class EResepController extends Controller
 
     public function updateStatusHttp(Request $request, int $idEResep): RedirectResponse
     {
-        $data = $request->validate(['statusBaru' => ['required', 'in:terkirim,diproses,siap_diserahkan,ditolak,selesai']]);
-        abort_unless($this->perbaruiStatusEResep($idEResep, $data['statusBaru']), 404);
+        $data = $request->validate([
+            'statusBaru' => ['required', 'in:terkirim,diproses,siap_diserahkan,ditolak,selesai'],
+            'alasanPenolakan' => ['required_if:statusBaru,ditolak', 'nullable', 'string', 'max:500'],
+        ]);
+        abort_unless($this->perbaruiStatusEResep($idEResep, $data['statusBaru'], $data['alasanPenolakan'] ?? null), 404);
 
         return back()->with('success', 'Status E-Resep berhasil diperbarui.');
     }
@@ -166,12 +167,12 @@ class EResepController extends Controller
         return false;
     }
 
-    public function perbaruiStatusEResep(int $idEResep, string $statusBaru): bool
+    public function perbaruiStatusEResep(int $idEResep, string $statusBaru, ?string $alasanPenolakan = null): bool
     {
         if (! in_array($statusBaru, ['terkirim', 'diproses', 'siap_diserahkan', 'ditolak', 'selesai'], true)) {
             return false;
         }
 
-        return EResep::updateStatusEResep($idEResep, $statusBaru);
+        return EResep::updateStatusEResep($idEResep, $statusBaru, $alasanPenolakan);
     }
 }

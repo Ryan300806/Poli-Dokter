@@ -48,7 +48,7 @@ class EResep extends Model
         }
 
         return [
-            ...$resep->only(['id_e_resep', 'id_pasien', 'id_diagnosis', 'status_e_resep', 'waktu_kirim']),
+            ...$resep->only(['id_e_resep', 'id_pasien', 'id_diagnosis', 'status_e_resep', 'alasan_penolakan', 'waktu_kirim']),
             'daftar_obat' => static::getInformasiObat($idEResep),
         ];
     }
@@ -68,8 +68,10 @@ class EResep extends Model
             ->get()->map(fn ($obat) => (array) $obat)->all();
     }
 
-    public static function updateStatusEResep(int $idEResep, string $statusBaru): bool
+    public static function updateStatusEResep(int $idEResep, string $statusBaru, ?string $alasanPenolakan = null): bool
     {
-        return static::query()->whereKey($idEResep)->update(['status_e_resep' => $statusBaru]) > 0;
+        $update = ['status_e_resep' => $statusBaru];
+        if ($statusBaru === 'ditolak') $update['alasan_penolakan'] = $alasanPenolakan;
+        return static::query()->whereKey($idEResep)->update($update) > 0;
     }
 }

@@ -1,12 +1,15 @@
 <?php
 
 // routes/fe/mf.php | Rute halaman FE milik MF (di-load otomatis dari routes/web.php)
-// Sementara memakai data contoh dari FE. BE akan mengganti closure dengan Controller tanpa mengubah URL dan nama rute.
+// Seluruh rute operasional diarahkan ke controller dan data database.
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Pasien\AuthPasienController;
+use App\Http\Controllers\Pasien\LoginController;
+use App\Http\Controllers\Pasien\PemutakhiranDataController;
 use App\Http\Controllers\Pasien\RegistrasiController;
 use App\Http\Controllers\Pasien\PortalPasienController;
+use App\Http\Controllers\Perawat\ObservasiController;
 use App\Http\Middleware\PasienSession;
 use Inertia\Inertia;
 
@@ -16,17 +19,17 @@ Route::post('/registrasi', [RegistrasiController::class, 'kirimDataRegistrasi'])
 
 // UI-002 MF-IM-002 Login
 Route::get('/login', [AuthPasienController::class, 'login'])->name('login');
-Route::post('/login', [AuthPasienController::class, 'masuk'])->name('login.masuk');
+Route::post('/login', [LoginController::class, 'login'])->name('login.masuk');
 
 // UI-003 MF-IM-003 Beranda Pasien
 Route::middleware(PasienSession::class)->group(function () {
     Route::get('/pasien/beranda', [PortalPasienController::class, 'beranda'])->name('pasien.beranda');
-    Route::get('/pasien/profil', [PortalPasienController::class, 'profil'])->name('pasien.profil');
-    Route::put('/pasien/profil', [PortalPasienController::class, 'updateProfil'])->name('pasien.profil.update');
+    Route::get('/pasien/profil', [PemutakhiranDataController::class, 'requestEdit'])->name('pasien.profil');
+    Route::put('/pasien/profil', [PemutakhiranDataController::class, 'simpanPerubahanData'])->name('pasien.profil.update');
     Route::get('/pasien/dasbor', [PortalPasienController::class, 'dasbor'])->name('pasien.dasbor');
     Route::post('/logout', [AuthPasienController::class, 'keluar'])->name('logout');
 });
 
 // UI-006 MF-IM-006 Triage Perawat
-Route::inertia('/perawat/triage', 'Perawat/Triage')->name('perawat.triage');
+Route::get('/perawat/triage', [ObservasiController::class, 'getAntreanTriage'])->name('perawat.triage');
 

@@ -4,7 +4,7 @@
 //   <AppLayout role="dokter" title="Antrean Periksa"> ...isi halaman... </AppLayout>
 // role: 'pasien' | 'dokter' | 'perawat' | 'apoteker' (menentukan menu sidebar).
 // Data pengguna diambil dari props bersama Inertia (auth.user) bila BE sudah menyediakannya,
-// jika belum memakai pengguna contoh dari lib/menu.js.
+// jika belum menyediakannya dari sesi autentikasi.
 import { Head, usePage } from '@inertiajs/react';
 import { useEffect } from 'react';
 import Header from '../Components/layout/Header';
@@ -15,7 +15,7 @@ import { toast } from '../Components/ui/Toast';
 
 export default function AppLayout({ role, title, children, contentClassName }) {
   const { props } = usePage();
-  const user = props.auth?.user ?? PERAN[role].demo;
+  const user = props.auth?.user ?? { nama: 'Pengguna', peran: PERAN[role]?.labelPeran ?? role };
   const headerRingkas = role === 'pasien' || title === 'Riwayat Medis';
   const tinggiHeader = headerRingkas ? 'pt-16' : 'pt-[78px]';
   const jarakKonten = role === 'pasien' ? 'pt-2' : 'pt-6';
