@@ -6,9 +6,12 @@ import Logo from './Logo';
 import { inisial } from '../../lib/format';
 import { toast } from '../ui/Toast';
 
-export default function Header({ user, adaNotifikasi = true, onCari }) {
+export default function Header({ user, role, compact = false, adaNotifikasi = true, onCari }) {
+  const tinggi = compact ? 'h-16' : 'h-[78px]';
+  const latarPencarian = role && role !== 'pasien' ? 'bg-surface-mid' : 'bg-surface-input';
+
   return (
-    <header className="fixed inset-x-0 top-0 z-30 flex h-16 items-center justify-between bg-white px-6 shadow-header">
+    <header className={`fixed inset-x-0 top-0 z-30 flex ${tinggi} items-center justify-between bg-white px-6 shadow-header`}>
       <div className="flex items-center gap-4">
         <Logo />
         <div className="leading-none">
@@ -22,7 +25,7 @@ export default function Header({ user, adaNotifikasi = true, onCari }) {
           <Search className="pointer-events-none absolute left-3.5 top-1/2 size-3 -translate-y-1/2 text-ink-nav" />
           <input
             name="q" type="search" placeholder="Cari nama pasien, No. RM, atau NIK..."
-            className="h-10 w-80 rounded-lg bg-surface-input pl-9 pr-4 text-xs tracking-[0.12px] text-ink-nav placeholder:text-ink-nav focus:outline-none focus:ring-2 focus:ring-brand/30"
+            className={`h-10 w-80 rounded-lg ${latarPencarian} pl-9 pr-4 text-xs tracking-[0.12px] text-ink-nav placeholder:text-ink-nav focus:outline-none focus:ring-2 focus:ring-brand/30`}
           />
         </form>
 
@@ -41,7 +44,9 @@ export default function Header({ user, adaNotifikasi = true, onCari }) {
         <div className="flex items-center gap-4">
           <span className="relative">
             <span className="flex size-8 items-center justify-center rounded-full bg-brand-light-active text-xs font-bold text-brand-dark ring-1 ring-line-blue">
-              {inisial(user.nama)}
+              {user.avatar
+                ? <img src={user.avatar} alt="" className="size-8 rounded-full object-cover" />
+                : inisial(user.nama)}
             </span>
             <span className="absolute bottom-0 right-0 size-2.5 rounded-full bg-brand ring-2 ring-white" />
           </span>

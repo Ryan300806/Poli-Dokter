@@ -80,12 +80,15 @@ function SelTriage({ p }) {
   );
 }
 
-export default function AntreanPeriksa({ dokter = dokterContoh, antrean = antreanDummy }) {
+export default function AntreanPeriksa({ dokter = dokterContoh, antrean: antreanDariBackend }) {
+  const dataAntreanDemo = !Array.isArray(antreanDariBackend);
+  const antrean = dataAntreanDemo ? antreanDummy : antreanDariBackend;
   const [kata, setKata] = useState('');
   const [filter, setFilter] = useState('semua');
   const [halaman, setHalaman] = useState(1);
   const [memuat, setMemuat] = useState(false);
   const [dipanggil, setDipanggil] = useState(null); // pasien yang akan dipanggil (isi Modal konfirmasi)
+  const [layarAntreanTerbuka, setLayarAntreanTerbuka] = useState(false);
 
   // Ringkasan untuk 4 kartu (dihitung dari seluruh antrean, bukan dari hasil filter)
   const ringkasan = useMemo(() => ({
@@ -109,6 +112,10 @@ export default function AntreanPeriksa({ dokter = dokterContoh, antrean = antrea
   const baris = terfilter.slice(mulai, mulai + JUMLAH_PER_HALAMAN);
 
   function muatUlang(senyap = false) {
+    if (dataAntreanDemo) {
+      if (!senyap) toast.info('Antrean ini menggunakan data demo dan belum terhubung ke sumber server.');
+      return;
+    }
     setMemuat(true);
     router.reload({
       only: ['antrean'],
@@ -121,9 +128,10 @@ export default function AntreanPeriksa({ dokter = dokterContoh, antrean = antrea
 
   // Sinkronisasi otomatis tiap 30 detik (sesuai catatan di Figma)
   useEffect(() => {
+    if (dataAntreanDemo) return undefined;
     const id = setInterval(() => muatUlang(true), INTERVAL_SINKRON_DETIK * 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [dataAntreanDemo]);
 
   function bukaRM(p) {
     router.visit(rute.dokter.riwayatMedis(p.id), {
@@ -150,7 +158,7 @@ export default function AntreanPeriksa({ dokter = dokterContoh, antrean = antrea
               </span>
               <span className="text-[10px] font-semibold uppercase tracking-[0.5px] text-brand">Poli aktif melayani</span>
             </span>
-            <Button variant="outline" icon={Radio} onClick={() => toast.info('Layar antrean depan belum tersedia.')}>
+            <Button variant="outline" icon={Radio} onClick={() => setLayarAntreanTerbuka(true)}>
               Layar Antrean Depan
             </Button>
           </>
@@ -163,6 +171,7 @@ export default function AntreanPeriksa({ dokter = dokterContoh, antrean = antrea
         </span>
         <span className="text-ink-muted">•</span>
         <span className="flex items-center gap-1"><CalendarDays className="size-3" />Hari Ini: {tanggalHariIni()}</span>
+        {dataAntreanDemo && <Badge tone="info">Data demo</Badge>}
       </PageHeader>
 
       <section className="grid grid-cols-4 gap-4" aria-label="Ringkasan antrean">
@@ -286,9 +295,10 @@ export default function AntreanPeriksa({ dokter = dokterContoh, antrean = antrea
         </div>
       </section>
 
-      <Callout aside={`Sinkronisasi otomatis tiap ${INTERVAL_SINKRON_DETIK} dtk`}>
-        Pasien yang telah menyelesaikan <b className="text-ink">Pemeriksaan Awal Triage</b> oleh Nakes akan otomatis naik statusnya
-        dan dapat segera dipanggil ke {dokter.ruang}.
+      <Callout aside={dataAntreanDemo ? 'Data demo' : `Sinkronisasi otomatis tiap ${INTERVAL_SINKRON_DETIK} dtk`}>
+        {dataAntreanDemo
+          ? 'Daftar antrean contoh ini tidak tersinkron ke server. Data operasional memerlukan dukungan backend.'
+          : <>Pasien yang telah menyelesaikan <b className="text-ink">Pemeriksaan Awal Triage</b> oleh Nakes akan otomatis naik statusnya dan dapat segera dipanggil ke {dokter.ruang}.</>}
       </Callout>
 
       <Modal
@@ -302,6 +312,24 @@ export default function AntreanPeriksa({ dokter = dokterContoh, antrean = antrea
         )}
       >
         Pasien akan dipanggil ke {dokter.ruang}. Pastikan pemeriksaan pasien sebelumnya sudah selesai.
+      </Modal>
+
+      <Modal
+        open={layarAntreanTerbuka}
+        onClose={() => setLayarAntreanTerbuka(false)}
+        title="Layar Antrean Ruang Periksa"
+        description="Pratinjau antrean poli saat ini (data demo)."
+        size="lg"
+        footer={<Button onClick={() => setLayarAntreanTerbuka(false)}>Tutup</Button>}
+      >
+        <div className="space-y-2">
+          {antrean.filter((pasien) => pasien.status !== 'selesai').slice(0, 5).map((pasien) => (
+            <div key={pasien.id} className="flex items-center justify-between rounded-xl bg-surface-low p-3">
+              <span><b className="block text-lg">{pasien.no}</b><span>{pasien.nama}</span></span>
+              <Badge tone={pasien.status === 'sedang' ? 'success' : 'muted'} dot>{pasien.status === 'sedang' ? 'Sedang diperiksa' : 'Menunggu giliran'}</Badge>
+            </div>
+          ))}
+        </div>
       </Modal>
     </AppLayout>
   );
