@@ -9,17 +9,20 @@ import { Head, usePage } from '@inertiajs/react';
 import { useEffect } from 'react';
 import Header from '../Components/layout/Header';
 import Sidebar from '../Components/layout/Sidebar';
+import HeaderNotifikasi from '../Components/Apoteker/HeaderNotifikasi';
+import SidebarNotifikasi from '../Components/Apoteker/SidebarNotifikasi';
 import { Toaster } from '../Components/ui/Toast';
 import { PERAN } from '../lib/menu';
 import { toast } from '../Components/ui/Toast';
 
-export default function AppLayout({ role, title, children, contentClassName }) {
+export default function AppLayout({ role, title, children, contentClassName, apotekerNotifikasi = false }) {
   const { props } = usePage();
   const user = props.auth?.user ?? { nama: 'Pengguna', peran: PERAN[role]?.labelPeran ?? role };
   const headerRingkas = role === 'pasien' || title === 'Riwayat Medis';
   const tinggiHeader = headerRingkas ? 'pt-16' : 'pt-[78px]';
   const jarakKonten = role === 'pasien' ? 'pt-2' : 'pt-6';
   const paddingKonten = contentClassName ?? 'pl-3 pr-9';
+  const gunakanShellNotifikasi = role === 'apoteker' && apotekerNotifikasi;
   useEffect(() => {
     if (props.flash?.success) toast.success(props.flash.success);
     if (props.flash?.info) toast.info(props.flash.info);
@@ -28,10 +31,14 @@ export default function AppLayout({ role, title, children, contentClassName }) {
   return (
     <>
       <Head title={`${title} | SIM-RS Rawat Jalan`} />
-      <Header user={user} role={role} compact={headerRingkas} />
-      <Sidebar role={role} compact={headerRingkas} />
-      <main className={`min-h-screen pb-10 pl-64 ${tinggiHeader}`}>
-        <div className={`flex flex-col gap-6 ${paddingKonten} ${jarakKonten}`}>{children}</div>
+      {gunakanShellNotifikasi
+        ? <HeaderNotifikasi user={user} />
+        : <Header user={user} role={role} compact={headerRingkas} />}
+      {gunakanShellNotifikasi ? <SidebarNotifikasi /> : <Sidebar role={role} compact={headerRingkas} />}
+      <main className={`min-h-screen pb-10 ${gunakanShellNotifikasi ? 'pl-[240px] pt-[72px]' : `pl-64 ${tinggiHeader}`}`}>
+        <div className={`flex flex-col gap-6 ${paddingKonten} ${gunakanShellNotifikasi ? 'pt-[26px]' : jarakKonten}`}>
+          {children}
+        </div>
       </main>
       <Toaster />
     </>
