@@ -1,94 +1,248 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { router } from '@inertiajs/react';
-import { ClipboardPlus, FileText, PlusCircle, Send, Trash2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ClipboardPlus, FileText, Lock, PlusCircle, Send, Trash2 } from 'lucide-react';
 import AppLayout from '../../Layouts/AppLayout';
 import Button from '../../Components/ui/Button';
 import Badge from '../../Components/ui/Badge';
 import { toast } from '../../Components/ui/Toast';
 import { rute } from '../../lib/rute';
 
-const fieldClass = 'h-10 min-w-0 w-full rounded-lg bg-surface-mid px-3 text-xs outline-none focus:ring-2 focus:ring-brand/30';
+const mapDaftarObat = (daftar = []) => (daftar.length
+  ? daftar.map((item, idx) => ({
+      id: `${item.id_obat ?? 'new'}-${idx}`,
+      id_obat: item.id_obat ?? null,
+      nama: item.nama_obat ?? '',
+      dosis: item.dosis ?? '',
+      satuan: item.jumlah_obat != null ? String(item.jumlah_obat) : '',
+      aturan: item.aturan_pakai ?? '',
+    }))
+  : [{ id: 1, id_obat: null, nama: '', dosis: '', satuan: '', aturan: '' }]);
 
-export default function FormEResep({ antreanId, pasienServer, idDiagnosis, obatServer = [] }) {
-  const pasien = pasienServer;
-  const isServerData = Boolean(pasienServer);
-  const [obat, setObat] = useState([{ id: 1, id_obat: null, nama: '', dosis: '', satuan: '', aturan: '' }]);
+export default function FormEResep({ antreanId, pasienServer, idDiagnosis, obatServer = [], eresepServer = null }) {
+  const modeEdit = Boolean(eresepServer?.id_e_resep);
+  const statusResep = eresepServer?.status_e_resep ?? null;
+  const dapatDiedit = !modeEdit || ['terkirim', 'ditolak'].includes(statusResep);
+
+  const [obat, setObat] = useState(() => mapDaftarObat(eresepServer?.daftar_obat));
   const [error, setError] = useState('');
 
+  useEffect(() => {
+    if (eresepServer?.daftar_obat) {
+      setObat(mapDaftarObat(eresepServer.daftar_obat));
+    }
+  }, [eresepServer]);
+
   function ubahObat(id, field, value) {
-    setObat((current) => current.map((item) => item.id === id ? { ...item, [field]: value } : item));
+    setObat((curr) => curr.map((item) => {
+      if (item.id !== id) return item;
+      if (field === 'nama') {
+        const match = obatServer.find((o) => o.nama_obat.toLowerCase() === value.trim().toLowerCase());
+        return { ...item, nama: value, id_obat: match?.id_obat ?? null };
+      }
+      return { ...item, [field]: value };
+    }));
   }
 
-  function tambahObat() {
-    setObat((current) => [...current, { id: Date.now() + Math.random(), nama: '', sediaan: '', dosis: '', satuan: '', aturan: '' }]);
+  function tambahBaris() {
+    setObat((curr) => [...curr, { id: Date.now() + Math.random(), id_obat: null, nama: '', dosis: '', satuan: '', aturan: '' }]);
   }
 
-  function kirimResep(event) {
-    event.preventDefault();
-    if (!obat.length || obat.some((item) => !item.nama.trim() || !item.dosis.trim() || !item.satuan.trim() || !item.aturan.trim())) {
+  function kirimResep(e) {
+    e.preventDefault();
+    if (!dapatDiedit) return;
+
+    if (!obat.length || obat.some((i) => !i.nama.trim() || !i.dosis.trim() || !i.satuan.trim() || !i.aturan.trim())) {
       setError('Lengkapi nama obat, dosis, jumlah, dan aturan pakai pada setiap baris.');
       return;
     }
 
-    if (isServerData) {
-      const daftarObat = obat.map((item) => ({
-        id_obat: item.id_obat ?? obatServer.find((option) => option.nama_obat.toLowerCase() === item.nama.trim().toLowerCase())?.id_obat,
-        dosis: item.dosis.trim(),
-        jumlah_obat: Number.parseInt(item.satuan, 10),
-        aturan_pakai: item.aturan.trim(),
-      }));
-      if (daftarObat.some((item) => !item.id_obat || !Number.isInteger(item.jumlah_obat) || item.jumlah_obat < 1)) {
-        setError('Pilih nama obat yang tersedia dan isi jumlah dalam angka, misalnya 30.');
-        return;
-      }
-      router.post('/dokter/e-resep', { id_pasien: pasienServer.id_pasien, id_diagnosis: idDiagnosis, daftar_obat: daftarObat }, {
-        onSuccess: () => { toast.success('E-Resep tersimpan di database.'); router.visit(rute.apoteker.notifikasiEResep); },
-        onError: (errors) => setError(errors.eresep || errors.daftar_obat || 'E-Resep gagal disimpan.'),
-      });
+    const daftarObat = obat.map((i) => ({
+      id_obat: i.id_obat ?? obatServer.find((o) => o.nama_obat.toLowerCase() === i.nama.trim().toLowerCase())?.id_obat,
+      dosis: i.dosis.trim(),
+      jumlah_obat: Number.parseInt(i.satuan, 10),
+      aturan_pakai: i.aturan.trim(),
+    }));
+
+    if (daftarObat.some((i) => !i.id_obat || !Number.isInteger(i.jumlah_obat) || i.jumlah_obat < 1)) {
+      setError('Pilih obat yang terdaftar di database dan isi jumlah angka minimal 1.');
       return;
     }
 
-    setError('E-Resep memerlukan data diagnosis dan pasien dari database.');
+    if (modeEdit) {
+      router.put(`/dokter/e-resep/${eresepServer.id_e_resep}`, { daftar_obat: daftarObat }, {
+        preserveScroll: true,
+        onSuccess: () => { setError(''); toast.success('E-Resep berhasil diperbarui & dikirim ulang.'); },
+        onError: (errs) => setError(errs.eresep || errs.daftar_obat || 'Gagal memperbarui E-Resep.'),
+      });
+    } else {
+      router.post('/dokter/e-resep', {
+        id_pasien: pasienServer.id_pasien,
+        id_diagnosis: idDiagnosis,
+        daftar_obat: daftarObat,
+      }, {
+        onError: (errs) => setError(errs.eresep || errs.daftar_obat || 'Gagal mengirim E-Resep.'),
+      });
+    }
   }
 
-  if (!pasien) return <AppLayout role="dokter" title="Formulir E-Resep"><p className="rounded-xl bg-white p-6">Data pasien atau diagnosis untuk antrean ini tidak tersedia.</p></AppLayout>;
   return (
-    <AppLayout role="dokter" title="Formulir E-Resep Pasien" contentClassName="pl-3 pr-9 xl:pl-[27px] xl:pr-[100px]">
+    <AppLayout role="dokter" title="Formulir E-Resep Pasien">
       <header className="flex flex-wrap items-center justify-between gap-4">
-        <div><p className="text-[9px] font-semibold uppercase tracking-wide text-brand">Pelayanan Rawat Jalan › Instalasi Farmasi › Formulir E-Resep</p><h1 className="mt-1 flex items-center gap-2 text-[28px] font-bold">Formulir E-Resep Pasien <Badge tone="success">Database</Badge></h1><p className="text-[13px] text-ink-muted">Pemberian resep obat elektronik terhubung dengan instalasi farmasi.</p></div>
-        <div className="rounded-xl bg-white px-4 py-2 text-right shadow-card"><small className="block text-[9px] uppercase text-ink-muted">ID Antrean</small><b className="text-xs">{antreanId}</b></div>
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-brand">PELAYANAN RAWAT JALAN &gt; INSTALASI FARMASI &gt; FORMULIR E-RESEP</p>
+          <h1 className="mt-1 text-3xl font-extrabold text-ink">Formulir E-Resep Pasien</h1>
+          <p className="mt-1 text-xs text-ink-soft">Pemberian resep obat elektronik terhubung langsung dengan instalasi farmasi.</p>
+        </div>
+        <div className="rounded-2xl bg-white px-4 py-2.5 text-right shadow-card">
+          <small className="block text-[9px] font-bold uppercase text-ink-muted">ID ANTREAN</small>
+          <b className="text-sm text-brand">#{antreanId}</b>
+        </div>
       </header>
 
+      {modeEdit && statusResep === 'ditolak' && (
+        <div role="alert" className="flex items-start gap-3 rounded-2xl border border-danger/30 bg-danger-light p-4 text-xs text-danger">
+          <AlertTriangle className="mt-0.5 size-5 shrink-0" />
+          <div>
+            <p className="font-bold text-sm">E-Resep #{eresepServer.id_e_resep} Ditolak oleh Farmasi</p>
+            <p className="mt-1"><b>Alasan penolakan:</b> {eresepServer.alasan_penolakan || 'Tidak ada alasan tercatat.'}</p>
+            <p className="mt-1 text-ink-soft">Perbaiki daftar obat di bawah ini, lalu klik <b>Simpan &amp; Kirim Ulang E-Resep</b>.</p>
+          </div>
+        </div>
+      )}
+
+      {modeEdit && statusResep === 'terkirim' && (
+        <div className="flex items-center justify-between gap-3 rounded-2xl bg-brand-light p-4 text-xs text-brand-dark">
+          <span className="flex items-center gap-2"><CheckCircle2 className="size-5 text-brand" /> E-Resep <b>#{eresepServer.id_e_resep}</b> sudah terkirim dan masih dapat diedit sebelum ditelaah farmasi.</span>
+          <Badge tone="success">Status: Terkirim</Badge>
+        </div>
+      )}
+
+      {modeEdit && !dapatDiedit && (
+        <div className="flex items-center gap-2 rounded-2xl bg-surface-mid p-4 text-xs text-ink-soft">
+          <Lock className="size-5 text-ink-muted" />
+          <span>E-Resep <b>#{eresepServer.id_e_resep}</b> berstatus <b>{statusResep}</b> sehingga terkunci (read-only).</span>
+        </div>
+      )}
+
       <form onSubmit={kirimResep} className="space-y-5">
-        <section className="rounded-2xl border-l-4 border-brand bg-white p-4 shadow-card">
-            <div className="mb-3 flex items-center justify-between"><h2 className="flex items-center gap-2 text-base font-bold"><ClipboardPlus className="size-5 text-brand" />Data Pasien &amp; Konteks Klinis</h2></div>
-          <div className="grid gap-2 md:grid-cols-5">
+        <section className="rounded-2xl border-l-4 border-brand bg-white p-5 shadow-card">
+          <h2 className="flex items-center gap-2 text-base font-bold text-ink">
+            <ClipboardPlus className="size-5 text-brand" /> Data Pasien &amp; Konteks Klinis
+          </h2>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             {[
-              ['ID Pasien', pasien.id_pasien], ['Nama Pasien', pasien.nama], ['NIK', pasien.nik],
-              ['Diagnosis Utama', pasien.diagnosis ?? '—'], ['ID Diagnosis', idDiagnosis],
-            ].map(([label, value]) => <div key={label} className="rounded-lg bg-surface-low px-3 py-2"><small className="block text-[9px] font-semibold uppercase text-ink-muted">{label}</small><b className="text-[11px]">{value}</b></div>)}
+              ['NO. REKAM MEDIS', pasienServer.rm],
+              ['NAMA PASIEN', `${pasienServer.nama} (${pasienServer.umur ?? '—'} Th)`],
+              ['NIK', pasienServer.nik],
+              ['DIAGNOSIS UTAMA', pasienServer.diagnosis],
+              ['DOKTER PEMERIKSA', pasienServer.dokter],
+            ].map(([label, val]) => (
+              <div key={label} className="rounded-xl bg-surface-low p-3">
+                <small className="block text-[9px] font-bold uppercase text-ink-muted">{label}</small>
+                <b className="mt-0.5 block text-xs text-ink">{val}</b>
+              </div>
+            ))}
           </div>
         </section>
 
-        <section className="rounded-2xl bg-white p-4 shadow-card">
-          <div className="flex items-center justify-between border-b border-line pb-3"><div><h2 className="flex items-center gap-2 text-base font-bold"><FileText className="size-5 text-brand" />Daftar Peresepan Obat</h2><p className="text-[11px] text-ink-muted">Sesuaikan sediaan, jumlah unit, dan instruksi konsumsi obat rawat jalan</p></div><span className="rounded bg-surface-low px-2 py-1 text-[9px]">Daftar obat dari database</span></div>
-          <div className="mt-3 hidden grid-cols-[32px_2fr_1fr_1fr_2fr_30px] gap-2 bg-surface-mid px-3 py-3 text-[10px] font-semibold md:grid"><span>#</span><span>Nama Obat &amp; Sediaan</span><span>Dosis</span><span>Jumlah</span><span>Aturan Pakai (Signa)</span><span /></div>
-          {obat.map((item, index) => <div key={item.id} className="grid gap-2 border-b border-line py-3 md:grid-cols-[32px_2fr_1fr_1fr_2fr_30px] md:items-start">
-            <span className="pt-2 text-center text-xs font-bold">{index + 1}</span>
-            <label className="text-[9px] text-ink-muted">Nama obat<input className={fieldClass} value={item.nama} onChange={(e) => ubahObat(item.id, 'nama', e.target.value)} list="daftar-obat-database" placeholder="Pilih obat dari database" /></label>
-            <label className="text-[9px] text-ink-muted">Dosis<input className={fieldClass} value={item.dosis} onChange={(e) => ubahObat(item.id, 'dosis', e.target.value)} placeholder="5 mg" /></label>
-            <label className="text-[9px] text-ink-muted">Jumlah<input className={fieldClass} value={item.satuan} onChange={(e) => ubahObat(item.id, 'satuan', e.target.value)} placeholder="Jumlah unit" /></label>
-            <label className="text-[9px] text-ink-muted">Aturan pakai<input className={fieldClass} value={item.aturan} onChange={(e) => ubahObat(item.id, 'aturan', e.target.value)} placeholder="1 x 1 tablet setelah makan" /></label>
-            <button type="button" aria-label={`Hapus ${item.nama || 'baris obat'}`} onClick={() => setObat((current) => current.filter((entry) => entry.id !== item.id))} className="mt-6 flex size-8 items-center justify-center rounded text-danger hover:bg-danger-light"><Trash2 className="size-4" /></button>
-          </div>)}
-          <datalist id="daftar-obat-database">{obatServer.map((item) => <option key={item.id_obat} value={item.nama_obat} />)}</datalist>
-          <Button type="button" variant="secondary" icon={PlusCircle} className="mt-3" onClick={tambahObat}>Tambah Baris Obat</Button>
+        <section className="rounded-2xl bg-white p-5 shadow-card">
+          <div className="flex items-center justify-between border-b border-line pb-3">
+            <div>
+              <h2 className="flex items-center gap-2 text-base font-bold text-ink">
+                <FileText className="size-5 text-brand" /> Daftar Peresepan Obat
+              </h2>
+              <p className="text-[11px] text-ink-muted">Pilih obat dari daftar formularium rumah sakit.</p>
+            </div>
+            <Badge tone="neutral">Stok Real-Time Database</Badge>
+          </div>
+
+          <div className="mt-3 space-y-3">
+            {obat.map((item, idx) => {
+              const info = obatServer.find((o) => o.id_obat === item.id_obat || o.nama_obat.toLowerCase() === item.nama.trim().toLowerCase());
+              return (
+                <div key={item.id} className="grid gap-2.5 border-b border-line pb-3 md:grid-cols-[30px_2fr_1fr_1fr_2fr_36px] md:items-end">
+                  <span className="pb-2.5 text-center text-xs font-bold">{idx + 1}</span>
+                  <label className="text-[11px] font-semibold text-ink-soft">
+                    Nama Obat {info && <span className={`ml-1 font-bold ${info.jumlah_stok > 0 ? 'text-brand' : 'text-danger'}`}>(Stok: {info.jumlah_stok})</span>}
+                    <input
+                      disabled={!dapatDiedit}
+                      list="daftar-obat-db"
+                      value={item.nama}
+                      onChange={(e) => ubahObat(item.id, 'nama', e.target.value)}
+                      placeholder="Ketik / pilih obat..."
+                      className="mt-1 h-10 w-full rounded-xl bg-surface-input px-3 text-xs text-ink outline-none focus:ring-2 focus:ring-brand/30"
+                    />
+                  </label>
+                  <label className="text-[11px] font-semibold text-ink-soft">
+                    Dosis
+                    <input
+                      disabled={!dapatDiedit}
+                      value={item.dosis}
+                      onChange={(e) => ubahObat(item.id, 'dosis', e.target.value)}
+                      placeholder="500 mg"
+                      className="mt-1 h-10 w-full rounded-xl bg-surface-input px-3 text-xs text-ink outline-none"
+                    />
+                  </label>
+                  <label className="text-[11px] font-semibold text-ink-soft">
+                    Jumlah
+                    <input
+                      disabled={!dapatDiedit}
+                      type="number"
+                      min={1}
+                      value={item.satuan}
+                      onChange={(e) => ubahObat(item.id, 'satuan', e.target.value)}
+                      placeholder="10"
+                      className="mt-1 h-10 w-full rounded-xl bg-surface-input px-3 text-xs text-ink outline-none"
+                    />
+                  </label>
+                  <label className="text-[11px] font-semibold text-ink-soft">
+                    Aturan Pakai (Signa)
+                    <input
+                      disabled={!dapatDiedit}
+                      value={item.aturan}
+                      onChange={(e) => ubahObat(item.id, 'aturan', e.target.value)}
+                      placeholder="3 x 1 setelah makan"
+                      className="mt-1 h-10 w-full rounded-xl bg-surface-input px-3 text-xs text-ink outline-none"
+                    />
+                  </label>
+                  {dapatDiedit && (
+                    <button
+                      type="button"
+                      onClick={() => setObat((c) => c.filter((x) => x.id !== item.id))}
+                      className="flex h-10 items-center justify-center rounded-xl text-danger hover:bg-danger-light"
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <datalist id="daftar-obat-db">
+            {obatServer.map((o) => <option key={o.id_obat} value={o.nama_obat} label={`Stok: ${o.jumlah_stok}`} />)}
+          </datalist>
+
+          {dapatDiedit && (
+            <Button type="button" variant="softBrand" icon={PlusCircle} className="mt-4" onClick={tambahBaris}>
+              Tambah Baris Obat
+            </Button>
+          )}
         </section>
 
-        {error && <p role="alert" className="rounded-lg bg-danger-light p-3 text-xs text-danger">{error}</p>}
-        <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white p-4 shadow-card">
-          <div className="rounded-lg bg-surface-low px-4 py-2 text-xs"><b className="block text-[9px] uppercase text-ink-muted">Total Item Obat</b>{obat.length} Jenis Obat</div>
-          <div className="flex gap-2"><Button type="button" variant="secondary" onClick={() => router.visit(rute.dokter.antreanPeriksa)}>Batal</Button><Button type="submit" icon={Send}>Kirim E-Resep</Button></div>
+        {error && <p className="rounded-xl bg-danger-light p-3 text-xs font-semibold text-danger">{error}</p>}
+
+        <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white p-4 shadow-card">
+          <div className="rounded-xl bg-surface-low px-4 py-2 text-xs">
+            <small className="block text-[9px] font-bold uppercase text-ink-muted">TOTAL ITEM OBAT</small>
+            <b>{obat.length} Jenis Obat</b>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => router.visit(rute.dokter.antreanPeriksa)}>Kembali ke Antrean</Button>
+            {dapatDiedit && (
+              <Button type="submit" icon={Send}>{modeEdit ? 'Simpan & Kirim Ulang E-Resep' : 'Kirim E-Resep'}</Button>
+            )}
+          </div>
         </section>
       </form>
     </AppLayout>

@@ -6,10 +6,7 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Hash;
 
-/**
- * Entitas DataPasien pada Class Diagram Modul 2.
- * Model ini memusatkan akses dan operasi dasar untuk tabel pasien.
- */
+/** Entitas DataPasien sesuai Class Diagram. */
 class DataPasien extends Model
 {
     protected $table = 'pasien';
@@ -19,6 +16,7 @@ class DataPasien extends Model
     public $timestamps = false;
 
     protected $fillable = [
+        'user_id',
         'nik',
         'nama_lengkap',
         'tempat_lahir',
@@ -38,7 +36,7 @@ class DataPasien extends Model
     {
         return static::query()->whereKey($idPasien)->first()?->makeVisible(['nik'])->only([
             'id_pasien', 'nik', 'nama_lengkap', 'tempat_lahir', 'tanggal_lahir', 'alamat',
-            'jenis_kelamin', 'kontak_darurat', 'golongan_darah', 'last_profile_update_at',
+            'jenis_kelamin', 'golongan_darah', 'kontak_darurat', 'nama_kontak_darurat', 'last_profile_update_at',
         ]) ?? [];
     }
 
@@ -58,9 +56,7 @@ class DataPasien extends Model
 
     public static function cariAkun(string $nik): ?array
     {
-        $pasien = static::query()->where('nik', $nik)->first();
-
-        return $pasien?->toArray();
+        return static::query()->where('nik', $nik)->first()?->toArray();
     }
 
     public static function validasiAkun(string $nik, string $password): bool

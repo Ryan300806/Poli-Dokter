@@ -1,59 +1,48 @@
-// Components/ui/Toast.jsx
-// Notifikasi singkat. Cara pakai di halaman mana pun (tanpa provider):
-//   import { toast } from '../../Components/ui/Toast';
-//   toast.success('Berhasil Booking');   toast.error('Kuota Slot Penuh');   toast.info('...');
-// <Toaster /> sudah dipasang di AppLayout, jangan dipasang lagi di halaman.
-// Teks pesan harus mengikuti Modul 2 (lihat tabel pesan di docs/panduan-fe.md).
 import { useEffect, useState } from 'react';
-import { CheckCircle2, XCircle, Info, X } from 'lucide-react';
-import { cn } from '../../lib/cn';
+import { AlertCircle, CheckCircle2, X } from 'lucide-react';
 
-let daftar = [];
-const pendengar = new Set();
-const sebar = () => pendengar.forEach((fn) => fn(daftar));
-
-function hapus(id) {
-  daftar = daftar.filter((t) => t.id !== id);
-  sebar();
-}
-function tampil(jenis, pesan) {
-  const id = Date.now() + Math.random();
-  daftar = [...daftar, { id, jenis, pesan }];
-  sebar();
-  setTimeout(() => hapus(id), 4000);
-}
+let listener = null;
 
 export const toast = {
-  success: (pesan) => tampil('success', pesan),
-  error: (pesan) => tampil('error', pesan),
-  info: (pesan) => tampil('info', pesan),
+  success: (title, message = '') => listener?.({ type: 'success', title, message }),
+  error: (title, message = '') => listener?.({ type: 'error', title, message }),
 };
 
-const GAYA = {
-  success: { ikon: CheckCircle2, kelas: 'text-brand' },
-  error: { ikon: XCircle, kelas: 'text-danger' },
-  info: { ikon: Info, kelas: 'text-info' },
-};
+export function ToastContainer({ flashSuccess, flashInfo }) {
+  const [item, setItem] = useState(null);
 
-export function Toaster() {
-  const [isi, setIsi] = useState(daftar);
   useEffect(() => {
-    pendengar.add(setIsi);
-    return () => pendengar.delete(setIsi);
+    listener = (next) => setItem(next);
+    return () => { listener = null; };
   }, []);
 
+  useEffect(() => {
+    if (flashSuccess) setItem({ type: 'success', title: flashSuccess, message: '' });
+    else if (flashInfo) setItem({ type: 'success', title: flashInfo, message: '' });
+  }, [flashSuccess, flashInfo]);
+
+  useEffect(() => {
+    if (!item) return undefined;
+    const t = setTimeout(() => setItem(null), 4500);
+    return () => clearTimeout(t);
+  }, [item]);
+
+  if (!item) return null;
+
+  const isError = item.type === 'error';
+
   return (
-    <div className="fixed bottom-6 right-6 z-[60] flex flex-col gap-2" aria-live="polite">
-      {isi.map((t) => {
-        const { ikon: Ikon, kelas } = GAYA[t.jenis];
-        return (
-          <div key={t.id} role="status" className="flex min-w-72 max-w-sm items-start gap-3 rounded-xl bg-white p-4 shadow-lg ring-1 ring-line">
-            <Ikon className={cn('mt-0.5 size-5 shrink-0', kelas)} />
-            <p className="flex-1 text-[13px] font-medium text-ink">{t.pesan}</p>
-            <button type="button" aria-label="Tutup" onClick={() => hapus(t.id)} className="text-ink-muted"><X className="size-4" /></button>
-          </div>
-        );
-      })}
+    <div className="fixed right-5 bottom-5 z-50 flex max-w-sm items-start gap-3 rounded-2xl border border-line bg-white p-4 shadow-modal">
+      <span className={`flex size-9 shrink-0 items-center justify-center rounded-full ${isError ? 'bg-danger-light text-danger' : 'bg-brand-light-active text-brand'}`}>
+        {isError ? <AlertCircle className="size-5" /> : <CheckCircle2 className="size-5" />}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-bold text-ink">{item.title}</p>
+        {item.message && <p className="mt-0.5 text-[11px] text-ink-soft">{item.message}</p>}
+      </div>
+      <button type="button" onClick={() => setItem(null)} className="text-ink-muted hover:text-ink">
+        <X className="size-4" />
+      </button>
     </div>
   );
 }

@@ -1,202 +1,141 @@
-// MF-IM-002 | UI-002 | Login | Penulis: MF
-// Sumber desain: Figma node 129:1944. Sumber kebutuhan: Modul 2 bagian 3.7 (UI-002).
-// Rute: GET /login  (routes/fe/mf.php, nama rute: login)
 import { useState } from 'react';
-import { Head, router } from '@inertiajs/react';
-import { ArrowLeft, ArrowRight, Asterisk, Contact, Eye, EyeOff, Info, Lock, User } from 'lucide-react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { ArrowRight, Eye, EyeOff, Info, Lock, UserCheck } from 'lucide-react';
 import Button from '../../Components/ui/Button';
-import { Input } from '../../Components/ui/Input';
-import { toast } from '../../Components/ui/Toast';
-import { cn } from '../../lib/cn';
+import { ToastContainer } from '../../Components/ui/Toast';
+import { rute } from '../../lib/rute';
 
-// URL tujuan. Kalau lib/rute.js sudah punya rutenya, ganti dengan itu.
-const URL_UTAMA = '/';
-const URL_REGISTRASI = '/registrasi';
+export default function Login({ errors: serverErrors = {} }) {
+  const { props } = usePage();
+  const flash = props.flash || {};
+  const [form, setForm] = useState({ nik: '', kataSandi: '', ingat: false });
+  const [lihatSandi, setLihatSandi] = useState(false);
+  const [errors, setErrors] = useState({});
 
-const NIK_PANJANG = 16;
-const SANDI_MINIMAL = 8;
+  const mergedErrors = { ...serverErrors, ...errors };
 
-const NILAI_AWAL = { nik: '', kataSandi: '', ingat: false };
-
-// Label dengan tanda bintang merah untuk kolom wajib.
-function wajib(teks) {
-  return (
-    <>
-      {teks} <span className="text-danger">*</span>
-    </>
-  );
-}
-
-// Mengembalikan objek galat. Objek kosong berarti semua kolom valid.
-function validasi(f) {
-  const galat = {};
-  if (f.nik.length !== NIK_PANJANG) galat.nik = 'NIK harus 16 digit angka.';
-  if (!f.kataSandi) galat.kataSandi = 'Kata sandi wajib diisi.';
-  else if (f.kataSandi.length < SANDI_MINIMAL) galat.kataSandi = 'Kata sandi minimal 8 karakter.';
-  return galat;
-}
-
-// Halaman tanpa Header/Sidebar (belum login), jadi tidak memakai AppLayout.
-// errors: galat validasi/otentikasi dari BE (Inertia mengirimnya otomatis).
-// serverAktif: status server SIM-RS dari BE. Nilai awal true selama BE belum mengirim.
-export default function Login({ errors: galatServer = {}, serverAktif = true }) {
-  const [form, setForm] = useState(NILAI_AWAL);
-  const [galat, setGalat] = useState({});
-  const [tampil, setTampil] = useState(false);
-  const tampilGalat = { ...galatServer, ...galat };
-
-  function ubah(nama, nilai) {
-    setForm((lama) => ({ ...lama, [nama]: nilai }));
-    // Pesan galat kolom itu hilang begitu pengguna mulai memperbaikinya.
-    setGalat((lama) => ({ ...lama, [nama]: undefined }));
-  }
-
-  function masuk(e) {
+  function submit(e) {
     e.preventDefault();
-    const galatBaru = validasi(form);
-    setGalat(galatBaru);
-    if (Object.keys(galatBaru).length > 0) {
-      toast.error('Data Tidak Lengkap');
-      return;
-    }
-    router.post('/login', form, { onError: () => toast.error('NIK atau kata sandi tidak cocok.') });
-  }
+    const err = {};
+    if (!form.nik.trim()) err.nik = 'NIK atau Username wajib diisi.';
+    if (!form.kataSandi) err.kataSandi = 'Kata sandi wajib diisi.';
+    setErrors(err);
+    if (Object.keys(err).length > 0) return;
 
-  function lupaSandi() {
-    // Halaman pemulihan kata sandi belum ada di Modul 2, jadi hanya memberi tahu pengguna.
-    toast.error('Pemulihan kata sandi belum tersedia.');
+    router.post(rute.login, form);
   }
 
   return (
     <>
-      <Head title="Login | SIM-RS Rawat Jalan" />
-      <div className="flex min-h-screen flex-col bg-surface">
-        {/* Header */}
-        <header className="flex items-center justify-between bg-white px-6 py-3 shadow-card sm:px-10">
+      <Head title="Autentikasi — RS Sehat Medika" />
+      <div className="min-h-screen flex flex-col bg-surface">
+        {/* Topbar Auth */}
+        <header className="flex h-16 items-center justify-between border-b border-line bg-white px-6">
           <div className="flex items-center gap-3">
-            <span className="flex size-9 items-center justify-center rounded-lg bg-brand text-white">
-              <Asterisk className="size-5" />
-            </span>
-            <span className="text-[15px] font-bold text-ink">RS SEHAT MEDIKA</span>
-            <span className="hidden rounded-full bg-brand-light px-2.5 py-0.5 text-[10px] font-bold text-brand sm:inline">
-              SIM-RS PORTAL
-            </span>
+            <span className="flex size-9 items-center justify-center rounded-xl bg-brand text-white font-extrabold text-lg">+</span>
+            <span className="text-sm font-bold text-ink">RS SEHAT MEDIKA</span>
+            <span className="rounded-md bg-brand-light-active px-2 py-0.5 text-[10px] font-bold text-brand-dark">SIM-RS PORTAL</span>
           </div>
-          <div className="flex items-center gap-3">
-            <Button href={URL_UTAMA} variant="ghost" size="sm" icon={ArrowLeft}>Kembali ke Sistem</Button>
-            <span className="flex size-9 items-center justify-center rounded-full bg-brand text-white">
-              <User className="size-4" />
-            </span>
-          </div>
+          <span className="text-xs font-medium text-ink-soft">Sistem Rawat Jalan</span>
         </header>
 
-        {/* Kartu login */}
-        <main className="flex flex-1 flex-col items-center px-4 py-12">
-          <div className="w-full max-w-[460px] rounded-2xl bg-white p-8 shadow-card sm:p-10">
-            <div className="mb-8 flex flex-col items-center text-center">
-              <span className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-brand-light text-brand">
+        {/* Center Card */}
+        <main className="flex flex-1 flex-col items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-modal">
+            <div className="flex flex-col items-center text-center">
+              <span className="flex size-12 items-center justify-center rounded-2xl bg-brand-light-active text-brand">
                 <Lock className="size-6" />
               </span>
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-ink-soft">
-                Portal Rekam Medis Elektronik
+              <p className="mt-4 text-[10px] font-bold uppercase tracking-widest text-ink-muted">
+                PORTAL REKAM MEDIS ELEKTRONIK
               </p>
-              <h1 className="mt-2 text-2xl font-bold leading-8 text-ink">Autentikasi Pasien</h1>
-              <p className="mt-2 text-[13px] leading-5 text-ink-soft">
-                Silakan masukkan NIK dan kata sandi yang telah terdaftar untuk mengakses rekam medis rawat jalan.
+              <h1 className="mt-1 text-2xl font-extrabold text-ink">Autentikasi Pengguna</h1>
+              <p className="mt-2 text-xs text-ink-soft leading-relaxed">
+                Silakan masukkan NIK (untuk Pasien) atau Username (untuk Dokter, Perawat, Apoteker) beserta kata sandi Anda.
               </p>
             </div>
 
-            <form onSubmit={masuk} noValidate className="flex flex-col gap-5">
-              {/* NIK + penanda 16 digit */}
-              <div className="relative">
-                <Input
-                  label={wajib('NIK / No. Kartu Keluarga')}
-                  hint={(
-                    <span className="inline-flex items-center gap-1.5">
-                      <Info className="size-3.5" />
-                      Gunakan 16 digit Nomor Induk Kependudukan sesuai e-KTP.
-                    </span>
-                  )}
-                  error={tampilGalat.nik}
-                  icon={Contact}
-                  inputMode="numeric"
-                  maxLength={NIK_PANJANG}
-                  placeholder="Contoh: 3171012345670001"
-                  autoComplete="username"
-                  value={form.nik}
-                  onChange={(e) => ubah('nik', e.target.value.replace(/\D/g, '').slice(0, NIK_PANJANG))}
-                />
-                <span className="absolute right-0 -top-0.5 rounded bg-surface-mid px-2 py-0.5 text-[10px] font-bold uppercase text-ink-soft">
-                  16 digit
-                </span>
+            <form onSubmit={submit} className="mt-6 space-y-4">
+              <div>
+                <div className="flex items-center justify-between text-xs font-semibold text-ink">
+                  <label htmlFor="nik">NIK / Username <span className="text-danger">*</span></label>
+                  <span className="rounded bg-surface-mid px-1.5 py-0.5 text-[10px] font-bold text-ink-soft">16 DIGIT / ID</span>
+                </div>
+                <div className="relative mt-1.5">
+                  <UserCheck className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-ink-muted" />
+                  <input
+                    id="nik"
+                    type="text"
+                    value={form.nik}
+                    onChange={(e) => { setForm({ ...form, nik: e.target.value }); setErrors({ ...errors, nik: undefined }); }}
+                    placeholder="Contoh: 3573010101900001 / dokter_umum"
+                    className="h-11 w-full rounded-xl bg-surface-input pl-10 pr-4 text-xs text-ink outline-none focus:ring-2 focus:ring-brand/30"
+                  />
+                </div>
+                {mergedErrors.nik && <p className="mt-1 text-[11px] font-medium text-danger">{mergedErrors.nik}</p>}
+                <p className="mt-1 flex items-center gap-1 text-[10px] text-ink-muted">
+                  <Info className="size-3 shrink-0" /> Gunakan 16 digit NIK sesuai e-KTP atau username staf.
+                </p>
               </div>
 
-              {/* Kata sandi + tautan Lupa Sandi */}
-              <div className="relative">
-                <Input
-                  label={wajib('Kata Sandi')}
-                  hint="Minimal 8 karakter kombinasi huruf dan angka."
-                  error={tampilGalat.kataSandi}
-                  icon={Lock}
-                  type={tampil ? 'text' : 'password'}
-                  placeholder="Masukkan kata sandi akun..."
-                  autoComplete="current-password"
-                  className="pr-10"
-                  value={form.kataSandi}
-                  onChange={(e) => ubah('kataSandi', e.target.value)}
-                />
-                <button
-                  type="button"
-                  onClick={lupaSandi}
-                  className="absolute right-0 top-0 text-xs font-semibold text-brand hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40"
-                >
-                  Lupa Sandi?
-                </button>
-                {/* top-[24px]: sejajar dengan tengah kolom input (di bawah label) */}
-                <button
-                  type="button"
-                  onClick={() => setTampil(!tampil)}
-                  aria-label={tampil ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'}
-                  className="absolute right-1 top-[24px] flex size-9 items-center justify-center rounded-lg text-ink-muted hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40"
-                >
-                  {tampil ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                </button>
+              <div>
+                <div className="flex items-center justify-between text-xs font-semibold text-ink">
+                  <label htmlFor="kataSandi">Kata Sandi <span className="text-danger">*</span></label>
+                </div>
+                <div className="relative mt-1.5">
+                  <Lock className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-ink-muted" />
+                  <input
+                    id="kataSandi"
+                    type={lihatSandi ? 'text' : 'password'}
+                    value={form.kataSandi}
+                    onChange={(e) => { setForm({ ...form, kataSandi: e.target.value }); setErrors({ ...errors, kataSandi: undefined }); }}
+                    placeholder="Masukkan kata sandi akun..."
+                    className="h-11 w-full rounded-xl bg-surface-input pl-10 pr-10 text-xs text-ink outline-none focus:ring-2 focus:ring-brand/30"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setLihatSandi((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink"
+                  >
+                    {lihatSandi ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </button>
+                </div>
+                {mergedErrors.kataSandi && <p className="mt-1 text-[11px] font-medium text-danger">{mergedErrors.kataSandi}</p>}
+                <p className="mt-1 text-[10px] text-ink-muted">Minimal 8 karakter kombinasi huruf dan angka.</p>
               </div>
 
-              <label className="flex cursor-pointer items-center gap-3 text-[13px] text-ink-soft">
+              <label className="flex items-center gap-2 text-xs text-ink-soft cursor-pointer">
                 <input
                   type="checkbox"
                   checked={form.ingat}
-                  onChange={(e) => ubah('ingat', e.target.checked)}
-                  className="size-4 shrink-0 accent-brand"
+                  onChange={(e) => setForm({ ...form, ingat: e.target.checked })}
+                  className="size-4 rounded accent-brand"
                 />
-                Ingat sesi login di perangkat ini
+                <span>Ingat sesi login di perangkat ini</span>
               </label>
 
-              <Button type="submit" size="lg" className="w-full uppercase tracking-wide">
-                Masuk ke portal pasien
-                <ArrowRight className="size-4" />
+              <Button type="submit" icon={ArrowRight} className="w-full h-11 text-xs uppercase tracking-wide">
+                Masuk ke Portal
               </Button>
-
-              <p className="flex flex-wrap items-center justify-center gap-1 text-[13px] text-ink-soft">
-                Belum memiliki akun?
-                <Button href={URL_REGISTRASI} variant="ghost" size="sm" className="font-bold text-brand">
-                  Registrasi Baru
-                  <ArrowRight className="size-3.5" />
-                </Button>
-              </p>
             </form>
+
+            <p className="mt-6 text-center text-xs text-ink-soft">
+              Belum memiliki akun pasien?{' '}
+              <Link href={rute.registrasi} className="font-bold text-brand hover:underline">
+                Registrasi Baru &rarr;
+              </Link>
+            </p>
           </div>
 
-          {/* Indikator status server */}
-          <p className="mt-6 flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide text-ink-soft">
-            <span className={cn('size-2 rounded-full', serverAktif ? 'bg-brand' : 'bg-danger')} />
-            {serverAktif ? 'Server SIM-RS aktif & normal' : 'Server SIM-RS sedang tidak aktif'}
-            <span className="text-ink-muted">•</span>
-            RS Sehat Medika
-          </p>
+          <div className="mt-6 flex items-center gap-2 text-[11px] font-semibold text-ink-muted">
+            <span className="size-2 rounded-full bg-brand" />
+            <span>SERVER SIM-RS AKTIF &amp; NORMAL</span>
+            <span>•</span>
+            <span>RS SEHAT MEDIKA</span>
+          </div>
         </main>
       </div>
+      <ToastContainer flashSuccess={flash.success} flashInfo={flash.info} />
     </>
   );
 }

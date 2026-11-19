@@ -1,49 +1,36 @@
-// lib/rute.js
-// SATU-SATUNYA tempat yang boleh menulis URL halaman. Jangan menulis '/dokter/...' langsung di komponen.
-// URL ini harus sama persis dengan routes/fe/*.php. Jika ada URL yang berubah, ubah di dua tempat itu saja.
-
 const dengan = (dasar, id) => (id ? `${dasar}/${id}` : dasar);
 
 export const rute = {
-  // Autentikasi (MF)
   registrasi: '/registrasi',
   login: '/login',
-  logout: '/logout', // POST, ditangani BE
+  logout: '/logout',
 
-  // Pasien
   pasien: {
-    beranda: '/pasien/beranda', // UI-003 (MF)
-    profil: '/pasien/profil', // UI-004 (MF)
-    simpanProfil: '/pasien/profil',
-    penjadwalanPoli: '/pasien/penjadwalan-poli', // UI-007 (KH)
-    riwayatReservasi: '/pasien/riwayat-reservasi', // UI-008 (KH)
-    dasbor: '/pasien/dasbor', // UI-010 (KH)
-    jadwalSaya: '/pasien/jadwal-saya', // UI-012 (MH)
+    beranda: '/pasien/beranda',
+    penjadwalanPoli: '/pasien/penjadwalan-poli',
     reservasi: '/pasien/reservasi',
+    riwayatReservasi: '/pasien/riwayat-reservasi',
     ubahReservasi: (id) => `/pasien/reservasi/${id}/jadwal`,
     batalkanReservasi: (id) => `/pasien/reservasi/${id}`,
+    profil: '/pasien/profil',
   },
 
-  // Dokter
-  dokter: {
-    jadwalSaya: '/dokter/jadwal-saya', // UI-009 (KH)
-    antreanPeriksa: '/dokter/antrean-periksa', // UI-014 (MH)
-    riwayatMedis: (antreanId) => dengan('/dokter/riwayat-medis', antreanId), // UI-015 (MH)
-    formDiagnosis: (antreanId) => dengan('/dokter/form-diagnosis', antreanId), // UI-011 (KH)
-    formEResep: (antreanId) => dengan('/dokter/form-eresep', antreanId), // UI-020 (RG)
-  },
-
-  // Perawat
   perawat: {
-    triage: '/perawat/triage', // UI-006 (MF)
-    antreanTriage: '/perawat/antrean-triage', // UI-016 (MH)
-    formObservasi: (antreanId) => dengan('/perawat/form-observasi', antreanId), // UI-017 (MH)
+    antreanTriage: '/perawat/antrean-triage',
+    formObservasi: (id) => dengan('/perawat/form-observasi', id),
   },
 
-  // Apoteker
+  dokter: {
+    antreanPeriksa: '/dokter/antrean-periksa',
+    jadwalSaya: '/dokter/jadwal-saya',
+    riwayatMedis: (id) => dengan('/dokter/riwayat-medis', id),
+    formDiagnosis: (id) => dengan('/dokter/form-diagnosis', id),
+    formEResep: (id) => dengan('/dokter/form-eresep', id),
+  },
+
   apoteker: {
-    notifikasiEResep: '/apoteker/notifikasi-eresep', // UI-021 (RG)
-    rincianEResep: (eresepId) => dengan('/apoteker/rincian-eresep', eresepId), // UI-022 (RG)
-    pengirimanObat: (eresepId) => dengan('/apoteker/pengiriman-obat', eresepId), // UI-023 (RG)
+    notifikasiEResep: '/apoteker/notifikasi-eresep',
+    rincianEResep: (id) => dengan('/apoteker/rincian-eresep', id),
+    pengirimanObat: (id) => dengan('/apoteker/pengiriman-obat', id),
   },
 };

@@ -1,44 +1,283 @@
-import { useState } from 'react';
-import { BadgeCheck, CalendarDays, Contact, MapPin, Phone, ShieldCheck, UserCog, UserRound } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { router, usePage } from '@inertiajs/react';
+import { AlertCircle, BadgeCheck, CalendarDays, Contact, Lock, MapPin, Phone, ShieldCheck, UserCog, UserRound } from 'lucide-react';
 import AppLayout from '../../Layouts/AppLayout';
-import PageHeader from '../../Components/ui/PageHeader';
-import Badge from '../../Components/ui/Badge';
 import Button from '../../Components/ui/Button';
-import EditDataModal from '../../Components/Pasien/EditDataModal';
+import Badge from '../../Components/ui/Badge';
+import Modal from '../../Components/ui/Modal';
+import { rute } from '../../lib/rute';
 
-const formatTanggal = (value) => value ? new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${value.slice(0, 10)}T00:00:00`)) : '—';
-function BarisData({ label, children }) {
-  return <div className="flex items-center justify-between gap-4 border-b border-line/60 py-3 text-[13px] last:border-b-0"><span className="text-ink-soft">{label}</span><span className="text-right font-medium text-ink">{children}</span></div>;
+const fmtDate = (v) => (v ? new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${String(v).slice(0, 10)}T00:00:00`)) : '—');
+
+function Baris({ label, value }) {
+  return (
+    <div className="flex items-center justify-between gap-4 border-b border-line/60 py-3 text-xs last:border-b-0">
+      <span className="text-ink-soft">{label}</span>
+      <span className="font-semibold text-ink text-right">{value}</span>
+    </div>
+  );
 }
 
 export default function Profil({ pasien = {}, riwayat = [], infoPembaruan = {} }) {
+  const { props } = usePage();
+  const flash = props.flash || {};
+  const updateResult = flash.profileUpdateResult || null;
+
   const [modalBuka, setModalBuka] = useState(false);
-  return <AppLayout role="pasien" title="Profil Pasien">
-    <div className="flex flex-col gap-6">
-      <PageHeader title="Profil Pasien Terintegrasi" actions={<Button icon={UserCog} onClick={() => setModalBuka(true)}>Mutakhirkan Data Pasien</Button>}>
-        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-brand"><Contact className="size-3.5"/>Modul data pasien terpusat</span>
-        <Badge tone="success" icon={BadgeCheck} className="uppercase">Status: terverifikasi</Badge>
-      </PageHeader>
-      {!infoPembaruan.canUpdate && infoPembaruan.nextAvailableAt && <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-ink-soft">Pemutakhiran profil berikutnya tersedia pada <b>{formatTanggal(infoPembaruan.nextAvailableAt)}</b>. Data tetap dapat dilihat selama masa tunggu.</p>}
-      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-        <section className="overflow-hidden rounded-2xl bg-white shadow-card">
-          <header className="flex items-center justify-between gap-3 bg-surface-low px-5 py-4"><h2 className="flex items-center gap-3 text-base font-semibold text-ink"><Contact className="size-5 text-brand"/>Identifikasi Pasien</h2><Badge tone="neutral" className="rounded-md">ID P-{String(pasien.id_pasien ?? '').padStart(4, '0')}</Badge></header>
-          <div className="flex flex-col gap-4 p-5">
-            <div className="flex gap-4 rounded-xl bg-surface-low p-4"><div className="flex size-20 shrink-0 items-center justify-center rounded-xl bg-surface-mid text-ink-muted"><UserRound className="size-8"/></div><div className="min-w-0 flex-1"><p className="text-[10px] font-semibold uppercase tracking-wide text-ink-muted">Nama lengkap pasien</p><p className="text-xl font-bold leading-7 text-ink">{pasien.nama_lengkap}</p><div className="mt-2 flex items-center justify-between gap-2 rounded-lg bg-white px-3 py-1.5 text-[13px]"><span className="text-[10px] font-medium text-ink-muted">NIK</span><span className="font-semibold tracking-wide text-ink">{pasien.nik?.slice(0, 6)}{'•'.repeat(6)}{pasien.nik?.slice(-4)}</span></div></div></div>
-            <div><BarisData label="Tempat / Tanggal Lahir">{pasien.tempat_lahir}, {formatTanggal(pasien.tanggal_lahir)}</BarisData><BarisData label="Jenis Kelamin">{pasien.jenis_kelamin === 'P' ? 'Perempuan' : 'Laki-laki'}</BarisData><BarisData label="Golongan Darah"><span className="rounded bg-red-50 px-2 py-1 text-xs font-semibold text-red-600">{pasien.golongan_darah || 'Belum diketahui'}</span></BarisData><BarisData label="Nomor Rekam Medis">P-{String(pasien.id_pasien ?? '').padStart(4, '0')}</BarisData></div>
-            <div className="rounded-lg bg-brand-light px-3 py-2.5 text-xs text-brand-dark"><span className="flex items-center gap-2 font-medium"><ShieldCheck className="size-4"/>Data identitas terhubung dengan akun pasien</span></div>
+  const [form, setForm] = useState({
+    nama_lengkap: pasien.nama_lengkap ?? '',
+    tempat_lahir: pasien.tempat_lahir ?? '',
+    tanggal_lahir: pasien.tanggal_lahir ?? '',
+    alamat: pasien.alamat ?? '',
+    jenis_kelamin: pasien.jenis_kelamin ?? 'L',
+    golongan_darah: pasien.golongan_darah ?? '',
+    kontak_darurat: pasien.kontak_darurat ?? '',
+    nama_kontak_darurat: pasien.nama_kontak_darurat ?? '',
+  });
+
+  useEffect(() => {
+    setForm({
+      nama_lengkap: pasien.nama_lengkap ?? '',
+      tempat_lahir: pasien.tempat_lahir ?? '',
+      tanggal_lahir: pasien.tanggal_lahir ?? '',
+      alamat: pasien.alamat ?? '',
+      jenis_kelamin: pasien.jenis_kelamin ?? 'L',
+      golongan_darah: pasien.golongan_darah ?? '',
+      kontak_darurat: pasien.kontak_darurat ?? '',
+      nama_kontak_darurat: pasien.nama_kontak_darurat ?? '',
+    });
+  }, [pasien]);
+
+  function submitUpdate(e) {
+    e.preventDefault();
+    router.put(rute.pasien.profil, form, { preserveScroll: true });
+  }
+
+  const rmCode = `RM-${String(pasien.id_pasien ?? 0).padStart(6, '0')}`;
+  const isBlocked = updateResult?.status === 'blocked' || !infoPembaruan.canUpdate;
+
+  return (
+    <AppLayout role="pasien" title="Profile Pasien">
+      <header className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-brand">MODUL DATA PASIEN TERPUSAT</p>
+          <div className="mt-1 flex flex-wrap items-center gap-3">
+            <h1 className="text-3xl font-extrabold text-ink">Profil Pasien Terintegrasi</h1>
+            <Badge tone="success"><BadgeCheck className="size-3.5" /> STATUS: TERVERIFIKASI</Badge>
           </div>
-          <footer className="flex items-center gap-2 bg-surface-low px-5 py-3 text-[11px] font-medium text-ink-soft"><ShieldCheck className="size-3.5 text-brand"/>Informasi identitas tersimpan pada rekam medis pasien.</footer>
+        </div>
+        <Button icon={UserCog} onClick={() => setModalBuka(true)}>Mutakhirkan Data Pasien</Button>
+      </header>
+
+      <div className="grid items-start gap-6 xl:grid-cols-[5fr_7fr]">
+        {/* Kartu Kiri: Identifikasi Rekam Medis (_p20) */}
+        <section className="overflow-hidden rounded-2xl bg-white shadow-card">
+          <div className="flex items-center justify-between bg-surface-low px-5 py-4">
+            <h2 className="flex items-center gap-2 text-sm font-bold text-ink">
+              <Contact className="size-4 text-brand" /> Identifikasi Rekam Medis
+            </h2>
+            <div className="flex items-center gap-2">
+              <Badge tone="neutral">{rmCode}</Badge>
+              <Badge tone="success">AKTIF</Badge>
+            </div>
+          </div>
+
+          <div className="p-5 space-y-4">
+            <div className="flex items-center gap-4 rounded-2xl bg-surface-low p-4">
+              <span className="flex size-16 shrink-0 items-center justify-center rounded-xl bg-surface-mid text-ink-muted">
+                <UserRound className="size-8" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-bold uppercase text-ink-muted">NAMA LENGKAP PASIEN</p>
+                <p className="text-lg font-extrabold text-ink truncate">{pasien.nama_lengkap}</p>
+                <p className="mt-1 text-xs font-semibold text-ink-soft">NIK: {pasien.nik}</p>
+              </div>
+            </div>
+
+            <div>
+              <Baris label="Tempat / Tgl Lahir" value={`${pasien.tempat_lahir}, ${fmtDate(pasien.tanggal_lahir)}`} />
+              <Baris label="Jenis Kelamin" value={pasien.jenis_kelamin === 'P' ? 'Perempuan' : 'Laki-laki'} />
+              <Baris
+                label="Golongan Darah"
+                value={<span className="rounded bg-danger-light px-2 py-0.5 text-xs font-bold text-danger">{pasien.golongan_darah || 'Belum tercatat'}</span>}
+              />
+              <Baris label="Nomor Rekam Medis" value={rmCode} />
+            </div>
+
+            <div className="flex items-center gap-2 rounded-xl bg-brand-light px-3.5 py-2.5 text-xs font-medium text-brand-dark">
+              <ShieldCheck className="size-4 shrink-0 text-brand" />
+              <span>Terakhir diperbarui: {infoPembaruan.lastUpdatedFormatted || 'Belum pernah diperbarui'}</span>
+            </div>
+          </div>
         </section>
-        <div className="flex flex-col gap-6">
-          <section className="overflow-hidden rounded-2xl bg-white shadow-card"><header className="flex items-center justify-between gap-3 bg-surface-low px-5 py-4"><h2 className="flex items-center gap-3 text-base font-semibold text-ink"><MapPin className="size-5 text-brand"/>Domisili & Kontak Pasien</h2><Badge tone="success" className="uppercase">Data terverifikasi</Badge></header><div className="flex flex-col gap-4 p-5"><div><p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-ink-muted">Alamat lengkap</p><p className="rounded-xl bg-surface-low p-4 text-sm leading-6 text-ink">{pasien.alamat}</p></div><div className="grid gap-4 sm:grid-cols-2"><div className="rounded-xl bg-surface-low p-4"><p className="text-xs text-ink-muted">Nama kontak darurat</p><p className="mt-1 font-semibold text-ink">{pasien.nama_kontak_darurat || 'Belum diisi'}</p></div><div className="rounded-xl bg-surface-low p-4"><p className="text-xs text-ink-muted">Nomor telepon</p><p className="mt-1 flex items-center gap-2 font-semibold text-ink"><Phone className="size-4 text-brand"/>{pasien.kontak_darurat}</p></div></div></div></section>
-          <section className="overflow-hidden rounded-2xl bg-white shadow-card"><header className="flex items-center justify-between bg-surface-low px-5 py-4"><h2 className="flex items-center gap-3 text-base font-semibold text-ink"><CalendarDays className="size-5 text-brand"/>Riwayat Kunjungan Poliklinik</h2><Badge tone="neutral">{riwayat.length} kunjungan</Badge></header>
-            {riwayat.length ? <div className="divide-y divide-line/60">{riwayat.map((item) => <div key={item.id_reservasi} className="grid gap-2 px-5 py-4 sm:grid-cols-[120px_1fr_auto]"><div><b className="text-sm text-ink">{formatTanggal(item.tanggal)}</b><p className="text-[10px] text-ink-muted">REG-{item.id_reservasi}</p></div><div><p className="text-sm font-semibold text-ink">{item.nama_poli}</p><p className="text-xs text-ink-soft">{item.nama_dokter}</p></div><Badge tone="success" className="self-center uppercase">Selesai</Badge></div>)}</div> : <p className="p-6 text-sm text-ink-muted">Belum ada kunjungan selesai yang tercatat.</p>}
-            <footer className="border-t border-line/60 px-5 py-3 text-xs text-ink-muted">Riwayat kunjungan menampilkan reservasi yang sudah selesai.</footer>
+
+        {/* Kolom Kanan: Domisili & Kontak + Riwayat Kunjungan Poliklinik (_p20) */}
+        <div className="space-y-6">
+          <section className="overflow-hidden rounded-2xl bg-white shadow-card">
+            <div className="flex items-center justify-between bg-surface-low px-5 py-4">
+              <h2 className="flex items-center gap-2 text-sm font-bold text-ink">
+                <MapPin className="size-4 text-brand" /> Domisili &amp; Kontak Pasien
+              </h2>
+              <Badge tone="success">DATA TERVERIFIKASI</Badge>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <p className="text-[10px] font-bold uppercase text-ink-muted">ALAMAT LENGKAP KTP &amp; TINGGAL</p>
+                <p className="mt-1.5 rounded-xl bg-surface-low p-4 text-xs leading-relaxed text-ink">{pasien.alamat}</p>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="rounded-xl bg-surface-low p-4">
+                  <p className="text-[11px] text-ink-muted">Kontak Darurat</p>
+                  <p className="mt-1 text-sm font-bold text-ink">{pasien.nama_kontak_darurat || 'Belum diisi'}</p>
+                </div>
+                <div className="rounded-xl bg-surface-low p-4">
+                  <p className="text-[11px] text-ink-muted">Nomor Telepon</p>
+                  <p className="mt-1 flex items-center gap-1.5 text-sm font-bold text-ink">
+                    <Phone className="size-4 text-brand" /> {pasien.kontak_darurat}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="overflow-hidden rounded-2xl bg-white shadow-card">
+            <div className="flex items-center justify-between bg-surface-low px-5 py-4">
+              <h2 className="flex items-center gap-2 text-sm font-bold text-ink">
+                <CalendarDays className="size-4 text-brand" /> Riwayat Kunjungan Poliklinik
+              </h2>
+              <Badge tone="neutral">{riwayat.length} Kunjungan Selesai</Badge>
+            </div>
+            {riwayat.length > 0 ? (
+              <div className="divide-y divide-line">
+                {riwayat.map((r) => (
+                  <div key={r.id_reservasi} className="grid items-center gap-2 px-5 py-3.5 sm:grid-cols-[110px_1fr_1fr_auto] text-xs">
+                    <div>
+                      <b className="text-ink">{fmtDate(r.tanggal)}</b>
+                      <p className="text-[10px] text-ink-muted">REG-{r.id_reservasi}</p>
+                    </div>
+                    <div>
+                      <p className="font-bold text-ink">{r.nama_poli}</p>
+                      <p className="text-[11px] text-ink-soft">{r.nama_dokter}</p>
+                    </div>
+                    <p className="font-medium text-ink-soft">{r.nama_diagnosis || 'Pemeriksaan Poliklinik'}</p>
+                    <Badge tone="success">SELESAI</Badge>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="p-6 text-xs text-ink-muted">Belum ada riwayat kunjungan selesai yang tercatat.</p>
+            )}
           </section>
         </div>
       </div>
-      <EditDataModal open={modalBuka} onClose={() => setModalBuka(false)} pasien={pasien} infoPembaruan={infoPembaruan}/>
-    </div>
-  </AppLayout>;
+
+      {/* Modal Pemutakhiran Data Pasien (_p3–_p13) */}
+      <Modal
+        open={modalBuka}
+        onClose={() => setModalBuka(false)}
+        title="Pemutakhiran Data Pasien"
+        icon={UserCog}
+        maxWidth="max-w-2xl"
+      >
+        {updateResult?.status === 'success' && (
+          <div className="mb-4 rounded-2xl bg-brand-light-active p-4 text-brand-dark">
+            <p className="flex items-center gap-2 text-xs font-extrabold"><BadgeCheck className="size-4" /> UPDATE BERHASIL !</p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-xl bg-white p-3 text-xs">
+                <p className="text-[10px] font-bold uppercase text-ink-muted">PEMBARUAN TERAKHIR</p>
+                <p className="mt-1 font-bold text-ink">{updateResult.lastUpdatedFormatted} <span className="text-danger">(0 hr lalu)</span></p>
+              </div>
+              <div className="rounded-xl bg-white p-3 text-xs">
+                <p className="text-[10px] font-bold uppercase text-ink-muted">INTERVAL BERJALAN</p>
+                <p className="mt-1 font-bold text-danger">0 Hari <span className="text-ink-muted">(&lt; 365 Hari)</span></p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {isBlocked && (
+          <div className="rounded-2xl bg-danger-light p-5 text-danger">
+            <p className="flex items-center gap-2 text-xs font-extrabold"><AlertCircle className="size-4" /> UPDATE DATA GAGAL</p>
+            <p className="mt-2 text-xs leading-relaxed">
+              Sistem mendeteksi bahwa data profil pasien telah dimutakhirkan dalam kurun waktu kurang dari 1 (satu) tahun. Pemutakhiran mandiri hanya dapat dilakukan satu kali setiap 365 hari.
+            </p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-xl bg-white p-3 text-xs text-ink">
+                <p className="text-[10px] font-bold uppercase text-ink-muted">PEMBARUAN TERAKHIR</p>
+                <p className="mt-1 font-bold">{infoPembaruan.lastUpdatedFormatted || updateResult?.lastUpdatedFormatted}</p>
+              </div>
+              <div className="rounded-xl bg-white p-3 text-xs text-ink">
+                <p className="text-[10px] font-bold uppercase text-ink-muted">INTERVAL BERJALAN</p>
+                <p className="mt-1 font-bold text-danger">{infoPembaruan.daysElapsed ?? updateResult?.daysElapsed ?? 0} Hari <span className="text-ink-muted">(&lt; 365 Hari)</span></p>
+              </div>
+            </div>
+            <div className="mt-4 flex justify-end">
+              <Button variant="secondary" onClick={() => setModalBuka(false)}>Tutup</Button>
+            </div>
+          </div>
+        )}
+
+        {!isBlocked && (
+          <form onSubmit={submitUpdate} className="space-y-4">
+            <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-ink-soft">
+              <Lock className="size-3.5" /> FORMULIR IDENTITAS
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="text-xs font-semibold">
+                NIK / No. KTP Pasien
+                <input disabled value={pasien.nik || ''} className="mt-1 h-10 w-full rounded-xl bg-surface-mid px-3 text-xs text-ink-muted" />
+              </label>
+              <label className="text-xs font-semibold">
+                Nama Lengkap Sesuai KTP
+                <input value={form.nama_lengkap} onChange={(e) => setForm({ ...form, nama_lengkap: e.target.value })} className="mt-1 h-10 w-full rounded-xl bg-surface-input px-3 text-xs outline-none focus:ring-2 focus:ring-brand/30" />
+              </label>
+              <label className="text-xs font-semibold">
+                Tempat Lahir
+                <input value={form.tempat_lahir} onChange={(e) => setForm({ ...form, tempat_lahir: e.target.value })} className="mt-1 h-10 w-full rounded-xl bg-surface-input px-3 text-xs outline-none focus:ring-2 focus:ring-brand/30" />
+              </label>
+              <label className="text-xs font-semibold">
+                Tanggal Lahir
+                <input type="date" value={form.tanggal_lahir} onChange={(e) => setForm({ ...form, tanggal_lahir: e.target.value })} className="mt-1 h-10 w-full rounded-xl bg-surface-input px-3 text-xs outline-none focus:ring-2 focus:ring-brand/30" />
+              </label>
+              <label className="text-xs font-semibold">
+                Jenis Kelamin
+                <select value={form.jenis_kelamin} onChange={(e) => setForm({ ...form, jenis_kelamin: e.target.value })} className="mt-1 h-10 w-full rounded-xl bg-surface-input px-3 text-xs outline-none">
+                  <option value="L">Laki-laki</option>
+                  <option value="P">Perempuan</option>
+                </select>
+              </label>
+              <label className="text-xs font-semibold">
+                Golongan Darah
+                <select value={form.golongan_darah} onChange={(e) => setForm({ ...form, golongan_darah: e.target.value })} className="mt-1 h-10 w-full rounded-xl bg-surface-input px-3 text-xs outline-none">
+                  <option value="">-- Pilih --</option>
+                  {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((g) => <option key={g} value={g}>{g}</option>)}
+                </select>
+              </label>
+              <label className="text-xs font-semibold">
+                Nama Kontak Darurat
+                <input value={form.nama_kontak_darurat} onChange={(e) => setForm({ ...form, nama_kontak_darurat: e.target.value })} className="mt-1 h-10 w-full rounded-xl bg-surface-input px-3 text-xs outline-none focus:ring-2 focus:ring-brand/30" />
+              </label>
+              <label className="text-xs font-semibold">
+                Nomor Telepon Darurat
+                <input value={form.kontak_darurat} onChange={(e) => setForm({ ...form, kontak_darurat: e.target.value })} className="mt-1 h-10 w-full rounded-xl bg-surface-input px-3 text-xs outline-none focus:ring-2 focus:ring-brand/30" />
+              </label>
+            </div>
+            <label className="block text-xs font-semibold">
+              Alamat Domisili Sesuai KTP
+              <textarea rows={2} value={form.alamat} onChange={(e) => setForm({ ...form, alamat: e.target.value })} className="mt-1 w-full rounded-xl bg-surface-input p-3 text-xs outline-none focus:ring-2 focus:ring-brand/30" />
+            </label>
+            <div className="flex items-center justify-between border-t border-line pt-4">
+              <span className="flex items-center gap-1.5 text-[11px] text-brand-dark">
+                <ShieldCheck className="size-4" /> Sesi Keamanan: Aktif
+              </span>
+              <div className="flex gap-2">
+                <Button variant="secondary" onClick={() => setModalBuka(false)}>Tutup</Button>
+                <Button type="submit" icon={Lock}>Mutakhirkan Data Pasien</Button>
+              </div>
+            </div>
+          </form>
+        )}
+      </Modal>
+    </AppLayout>
+  );
 }

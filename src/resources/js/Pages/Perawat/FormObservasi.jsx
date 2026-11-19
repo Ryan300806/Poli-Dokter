@@ -3,108 +3,179 @@ import { router } from '@inertiajs/react';
 import { Activity, ArrowLeft, CheckCircle2, ShieldCheck } from 'lucide-react';
 import AppLayout from '../../Layouts/AppLayout';
 import Button from '../../Components/ui/Button';
-import Badge from '../../Components/ui/Badge';
 import { rute } from '../../lib/rute';
 
-const initialForm = (pasien = {}) => ({
-  tdSis: pasien.tdSis ?? '',
-  tdDia: pasien.tdDia ?? '',
-  suhu: pasien.suhu ?? '',
-  berat: pasien.berat ?? '',
-});
-
-const fieldClass = 'h-10 w-full rounded-lg bg-surface-mid px-3 text-xs outline-none focus:ring-2 focus:ring-brand/30';
-
-function Field({ label, unit, value, onChange, type = 'number', min = '0', max, step = '1', note, className = '' }) {
-  return (
-    <label className={`block text-xs ${className}`}>
-      <span className="flex items-center justify-between font-medium leading-[18px]">{label}{note && <small className="text-[9px] text-ink-muted">{note}</small>}</span>
-      <span className="mt-1.5 flex items-center rounded-lg bg-surface-mid pr-3 focus-within:ring-2 focus-within:ring-brand/30"><input type={type} min={min} max={max} step={step} value={value} onChange={(e) => onChange(e.target.value)} className="h-10 w-full min-w-0 bg-transparent px-3 outline-none" /><small className="text-[10px] text-ink-muted">{unit}</small></span>
-    </label>
-  );
-}
-
-export default function FormObservasi({ antreanId, pasien: pasienBackend, observasi: observasiBackend }) {
-  const pasien = pasienBackend;
-  const isServerData = Boolean(pasienBackend);
-  const [form, setForm] = useState(() => pasien ? initialForm(pasien) : initialForm({}));
+export default function FormObservasi({ antreanId, pasien, observasi }) {
+  const [form, setForm] = useState({
+    tdSis: pasien?.tdSis ?? '',
+    tdDia: pasien?.tdDia ?? '',
+    suhu: pasien?.suhu ?? '',
+    berat: pasien?.berat ?? '',
+  });
   const [error, setError] = useState('');
 
-  function ubah(field, value) {
-    setForm((current) => ({ ...current, [field]: value }));
-    setError('');
-  }
+  function submit(e) {
+    e.preventDefault();
+    const sis = Number(form.tdSis);
+    const dia = Number(form.tdDia);
+    const suhu = Number(form.suhu);
+    const berat = Number(form.berat);
 
-  function validasi() {
-    const angka = ['tdSis', 'tdDia', 'suhu', 'berat'];
-    const tidakValid = angka.find((key) => form[key] === '' || !Number.isFinite(Number(form[key])) || Number(form[key]) <= 0);
-    if (tidakValid) return 'Semua parameter vital harus diisi dengan angka lebih dari 0.';
-    if (Number(form.suhu) < 30 || Number(form.suhu) > 45) return 'Suhu tubuh harus berada dalam rentang 30–45 °C.';
-    return '';
-  }
-
-  function simpanObservasi(event) {
-    event.preventDefault();
-    const pesanError = validasi();
-    if (pesanError) {
-      setError(pesanError);
+    if (!sis || !dia || sis < 50 || sis > 250 || dia < 30 || dia > 150) {
+      setError('Tekanan darah harus valid (Sistolik 50–250, Diastolik 30–150 mmHg).');
+      return;
+    }
+    if (!suhu || suhu < 30 || suhu > 45) {
+      setError('Suhu tubuh harus berada di antara 30–45 °C.');
+      return;
+    }
+    if (!berat || berat <= 0 || berat > 500) {
+      setError('Berat badan harus lebih dari 0 kg.');
       return;
     }
 
-    if (isServerData) {
-      const tekananDarah = `${form.tdSis}/${form.tdDia}`;
-      const payload = { tekananDarah, suhu: form.suhu, beratBadan: form.berat };
-      const url = observasiBackend?.id_observasi
-        ? `/perawat/observasi/${observasiBackend.id_observasi}`
-        : `/perawat/observasi/${antreanId}`;
-      router[observasiBackend?.id_observasi ? 'put' : 'post'](url, payload, {
-        preserveScroll: true,
-        onSuccess: () => { setError(''); router.visit(rute.perawat.antreanTriage); },
-        onError: (errors) => setError(errors.tekananDarah || errors.suhu || errors.beratBadan || 'Data observasi gagal disimpan.'),
+    const payload = {
+      tekananDarah: `${sis}/${dia}`,
+      suhu: form.suhu,
+      beratBadan: form.berat,
+    };
+
+    if (observasi?.id_observasi) {
+      router.put(`/perawat/observasi/${observasi.id_observasi}`, payload, {
+        onError: (errs) => setError(errs.tekananDarah || errs.suhu || errs.beratBadan || 'Gagal memperbarui observasi.'),
       });
-      return;
+    } else {
+      router.post(`/perawat/observasi/${antreanId}`, payload, {
+        onError: (errs) => setError(errs.tekananDarah || errs.suhu || errs.beratBadan || 'Gagal menyimpan observasi.'),
+      });
     }
-
-    setError('Data pasien tidak tersedia dari server. Observasi tidak dapat disimpan.');
   }
 
   function resetForm() {
-    setForm(initialForm(pasien ?? {}));
+    setForm({ tdSis: '', tdDia: '', suhu: '', berat: '' });
     setError('');
   }
 
   return (
-    <AppLayout role="perawat" title="Formulir Observasi Triage" contentClassName="pl-3 pr-9 xl:pl-[30px] xl:pr-[100px]">
-      {!pasien ? <p className="rounded-xl bg-white p-6">Data pasien untuk antrean ini tidak ditemukan.</p> : <>
-      <div className="mt-[9px] -mb-[9px] flex flex-wrap items-end justify-between gap-3 pb-2">
-        <div><h1 className="flex items-center gap-2 text-[27px] font-bold leading-9">Formulir Observasi Triage &amp; Tanda Vital <Badge tone="success">Data database</Badge></h1><p className="text-[13px] text-ink-muted">Input pemeriksaan klinis awal pasien: <b className="text-ink">{pasien.nama}</b> (ID {pasien.rm}) - Poli {pasien.poli}</p></div>
-        <Button variant="ghost" icon={ArrowLeft} onClick={() => router.visit(rute.perawat.antreanTriage)}>Kembali ke Antrean</Button>
+    <AppLayout role="perawat" title="Formulir Observasi Triage">
+      <div className="flex items-center justify-between">
+        <Button variant="ghost" icon={ArrowLeft} onClick={() => router.visit(rute.perawat.antreanTriage)}>
+          Kembali ke Antrean Triage
+        </Button>
       </div>
 
-      <form onSubmit={simpanObservasi} className="rounded-2xl bg-white p-8 shadow-card">
-        <section className="flex items-center gap-4 rounded-xl bg-surface-low p-5">
-          <span className="flex size-12 items-center justify-center rounded-full bg-brand-light-active font-bold text-brand">{pasien.nama.split(' ').map((part) => part[0]).slice(0, 2).join('')}</span>
-          <div className="flex-1"><h2 className="font-bold">{pasien.nama} <small className="ml-1 text-[10px] font-normal text-ink-muted">{pasien.umur} Thn • {pasien.jk}</small></h2><div className="mt-0.5 space-y-1 text-[10px] leading-[18px] text-ink-muted"><p>ID Pasien: {pasien.rm}</p><p>NIK: {pasien.nik}</p></div></div>
-          <span className="rounded-lg bg-white px-3 py-2 text-xs font-bold">{pasien.no}</span>
-        </section>
+      <header>
+        <h1 className="text-3xl font-extrabold text-ink">Formulir Observasi Triage &amp; Tanda Vital</h1>
+        <p className="mt-1 text-xs text-ink-soft">
+          Input pemeriksaan klinis awal pasien: <b>{pasien.nama} ({pasien.rm})</b> — {pasien.poli}
+        </p>
+      </header>
 
-        <section className="mt-[25px]">
-          <div className="mb-6 flex h-8 items-end justify-between"><h2 className="flex items-center gap-2 text-base font-bold leading-6"><Activity className="size-4 text-brand" />Parameter Tanda Vital &amp; Fisik</h2><span className="text-[10px] text-ink-muted">* Wajib diisi oleh perawat triage</span></div>
-          <div className="grid gap-x-6 gap-y-5 sm:grid-cols-12">
-            <div className="text-xs sm:col-span-6"><span className="flex justify-between font-medium leading-[18px]">Tekanan Darah (Sistolik / Diastolik)<small className="text-[9px] text-brand">Target: &lt; 130/85 mmHg</small></span><div className="mt-1.5 flex items-center gap-2"><input aria-label="Tekanan darah sistolik" className={fieldClass} value={form.tdSis} onChange={(e) => ubah('tdSis', e.target.value)} /><span>/</span><input aria-label="Tekanan darah diastolik" className={fieldClass} value={form.tdDia} onChange={(e) => ubah('tdDia', e.target.value)} /><span className="text-[10px] text-ink-muted">mmHg</span></div></div>
-            <Field className="sm:col-span-6" label="Suhu Tubuh" unit="°C" value={form.suhu} onChange={(value) => ubah('suhu', value)} min="30" max="45" step="0.1" note="Norm: 36.5 - 37.5 °C" />
-            <Field className="sm:col-span-3" label="Berat Badan" unit="Kg" value={form.berat} onChange={(value) => ubah('berat', value)} step="0.1" />
+      <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-white p-5 shadow-card">
+        <div className="flex items-center gap-4">
+          <span className="flex size-12 items-center justify-center rounded-full bg-brand-light-active text-sm font-extrabold text-brand-dark">
+            {pasien.nama.slice(0, 2).toUpperCase()}
+          </span>
+          <div>
+            <h2 className="text-base font-bold text-ink">{pasien.nama} <span className="text-xs font-medium text-ink-muted">• {pasien.umur} Thn • {pasien.jk}</span></h2>
+            <p className="mt-0.5 text-xs text-ink-soft">No. RM: <b>{pasien.rm}</b> • NIK: <b>{pasien.nik}</b></p>
           </div>
-        </section>
+        </div>
+        <span className="rounded-xl bg-brand-light-active px-3.5 py-2 text-xs font-extrabold text-brand-dark">
+          Antrean {pasien.no}
+        </span>
+      </section>
 
-        {error && <p role="alert" className="mt-4 rounded-lg bg-danger-light p-3 text-xs text-danger">{error}</p>}
+      <form onSubmit={submit} className="rounded-2xl bg-white p-6 shadow-card space-y-6">
+        <div className="flex items-center justify-between border-b border-line pb-3">
+          <h3 className="flex items-center gap-2 text-sm font-bold text-ink">
+            <Activity className="size-5 text-brand" /> Parameter Tanda Vital &amp; Fisik
+          </h3>
+          <span className="text-[11px] font-medium text-ink-muted">* Wajib diisi oleh perawat triage</span>
+        </div>
 
-        <div className="mt-[3.5px] flex h-[78px] items-end justify-between gap-3">
-          <p className="mb-2.5 flex items-center gap-2 text-[10px] text-ink-muted"><ShieldCheck className="size-4 text-brand" />Petugas triage</p>
-          <div className="flex gap-3"><Button type="button" className="!h-[38px] !w-[113px] !px-0" variant="secondary" onClick={resetForm}>Reset Form</Button><Button type="submit" className="!h-[38px] !w-[205px] !px-0" icon={CheckCircle2}>Simpan Observasi</Button></div>
+        <div className="grid gap-5 md:grid-cols-3">
+          <div>
+            <div className="flex items-center justify-between text-xs font-bold">
+              <span>Tekanan Darah (Sis / Dia)</span>
+              <span className="text-[10px] font-semibold text-brand">Target: &lt; 130/85 mmHg</span>
+            </div>
+            <div className="mt-2 flex items-center gap-2">
+              <div className="flex flex-1 items-center rounded-xl bg-surface-input px-3">
+                <input
+                  type="number"
+                  placeholder="120"
+                  value={form.tdSis}
+                  onChange={(e) => { setForm({ ...form, tdSis: e.target.value }); setError(''); }}
+                  className="h-11 w-full bg-transparent text-xs font-semibold outline-none"
+                />
+                <span className="text-[10px] text-ink-muted">Sis</span>
+              </div>
+              <span className="font-bold text-ink-muted">/</span>
+              <div className="flex flex-1 items-center rounded-xl bg-surface-input px-3">
+                <input
+                  type="number"
+                  placeholder="80"
+                  value={form.tdDia}
+                  onChange={(e) => { setForm({ ...form, tdDia: e.target.value }); setError(''); }}
+                  className="h-11 w-full bg-transparent text-xs font-semibold outline-none"
+                />
+                <span className="text-[10px] text-ink-muted">Dia</span>
+              </div>
+              <span className="rounded-xl bg-surface-low px-2.5 py-3 text-[10px] font-bold text-ink-soft">mmHg</span>
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between text-xs font-bold">
+              <span>Suhu Tubuh</span>
+              <span className="text-[10px] font-medium text-ink-muted">Norm: 36.5 - 37.5 °C</span>
+            </div>
+            <div className="mt-2 flex items-center rounded-xl bg-surface-input px-3">
+              <input
+                type="number"
+                step="0.1"
+                placeholder="36.5"
+                value={form.suhu}
+                onChange={(e) => { setForm({ ...form, suhu: e.target.value }); setError(''); }}
+                className="h-11 w-full bg-transparent text-xs font-semibold outline-none"
+              />
+              <span className="text-[11px] font-bold text-ink-muted">°C</span>
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between text-xs font-bold">
+              <span>Berat Badan</span>
+            </div>
+            <div className="mt-2 flex items-center rounded-xl bg-surface-input px-3">
+              <input
+                type="number"
+                step="0.1"
+                placeholder="65"
+                value={form.berat}
+                onChange={(e) => { setForm({ ...form, berat: e.target.value }); setError(''); }}
+                className="h-11 w-full bg-transparent text-xs font-semibold outline-none"
+              />
+              <span className="text-[11px] font-bold text-ink-muted">Kg</span>
+            </div>
+          </div>
+        </div>
+
+        {error && <p role="alert" className="rounded-xl bg-danger-light p-3 text-xs font-semibold text-danger">{error}</p>}
+
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
+          <span className="flex items-center gap-1.5 text-xs text-ink-muted">
+            <ShieldCheck className="size-4 text-brand" /> Data observasi otomatis meneruskan status antrean ke Dokter Poli.
+          </span>
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={resetForm}>Reset Form</Button>
+            <Button type="submit" icon={CheckCircle2}>
+              {observasi?.id_observasi ? 'Perbarui Observasi' : 'Simpan Observasi'}
+            </Button>
+          </div>
         </div>
       </form>
-      </>}
     </AppLayout>
   );
 }

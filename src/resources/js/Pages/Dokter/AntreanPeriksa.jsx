@@ -1,328 +1,199 @@
-// MH-IM-003 | UI-014 | Halaman Antrean Periksa (Dashboard Dokter) | Penulis: MH
-// Sumber desain: Figma node 240:1074. Sumber kebutuhan: Modul 2 bagian 3.7 (UI-014).
-// Rute: GET /dokter/antrean-periksa  (routes/fe/mh.php, nama rute dokter.antrean-periksa)
-// Props dari BE: { dokter, antrean }
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { router } from '@inertiajs/react';
 import {
-  Stethoscope, Building2, CalendarDays, Radio, Users, ClipboardCheck, ClipboardClock, CheckCircle2,
-  Search, RefreshCw, Clock, FolderOpen, Megaphone, FileText, Check,
+  Building2, CalendarDays, CheckCircle2, ClipboardCheck, ClipboardClock,
+  FileText, FolderOpen, Megaphone, Radio, RefreshCw, Search, Stethoscope, Users,
 } from 'lucide-react';
 import AppLayout from '../../Layouts/AppLayout';
-import PageHeader from '../../Components/ui/PageHeader';
-import StatCard from '../../Components/ui/StatCard';
-import Badge from '../../Components/ui/Badge';
 import Button from '../../Components/ui/Button';
+import Badge from '../../Components/ui/Badge';
 import Modal from '../../Components/ui/Modal';
-import Callout from '../../Components/ui/Callout';
-import Pagination from '../../Components/ui/Pagination';
-import { Table, Thead, Tbody, Tr, Th, Td } from '../../Components/ui/Table';
-import { toast } from '../../Components/ui/Toast';
+import StatCard from '../../Components/ui/StatCard';
 import { rute } from '../../lib/rute';
-import { cn } from '../../lib/cn';
-import { inisial, tanggalHariIni } from '../../lib/format';
-import { STATUS_PEMERIKSAAN, OPSI_FILTER_STATUS } from '../../lib/status';
 
-const JUMLAH_PER_HALAMAN = 5;
-const INTERVAL_SINKRON_DETIK = 30;
-
-// Tekanan darah dianggap perlu perhatian bila sistolik >= 130 atau diastolik >= 90.
-function tdPerluPerhatian(td) {
-  const [sistol, diastol] = td.split('/').map(Number);
-  return sistol >= 130 || diastol >= 90;
-}
-
-function KotakNomor({ no, status }) {
-  const [huruf, angka] = no.split('-');
-  const warna = {
-    sedang: 'bg-brand text-white shadow-card',
-    menunggu: 'bg-surface-high text-ink',
-    selesai: 'bg-surface-mid text-ink-muted',
-  }[status];
-  return (
-    <span className={cn('flex h-12 w-14 flex-col items-center justify-center rounded-lg text-base font-bold leading-6', warna)}>
-      <span>{huruf}-</span><span>{angka}</span>
-    </span>
-  );
-}
-
-// Satu nilai tanda vital: label di atas, angka di bawah (sesuai Figma)
-function Vital({ label, nilai, bahaya = false }) {
-  return (
-    <span className={cn('flex flex-col', bahaya ? 'font-semibold text-danger-strong' : 'text-ink-soft')}>
-      <span>{label}</span><span className={bahaya ? '' : 'text-ink'}>{nilai}</span>
-    </span>
-  );
-}
-
-function SelTriage({ p }) {
-  if (p.status === 'selesai') {
-    return (
-      <div className="flex flex-col items-start gap-1 text-[13px] text-ink-muted">
-        <Badge tone="muted" check className="font-medium">{p.hasil}</Badge>
-        <span>TD {p.td} <span className="mx-1">•</span> {p.tindakLanjut}</span>
-      </div>
-    );
-  }
-  if (!p.triage) {
-    return <Badge tone="muted">Belum ada data triage</Badge>;
-  }
-  const { td, suhu } = p.triage;
-  return (
-    <div className="flex flex-col items-start gap-1">
-      <Badge tone="success" check className="font-medium">Triage Selesai</Badge>
-      <div className="flex items-center gap-2 text-[13px] leading-[18px] text-ink-soft">
-        <Vital label="TD" nilai={td} bahaya={tdPerluPerhatian(td)} />
-        <span className="text-ink-muted">•</span>
-        <Vital label="Suhu" nilai={`${Number(suhu).toFixed(1)}°C`} />
-      </div>
-    </div>
-  );
-}
-
-export default function AntreanPeriksa({ dokter = {}, antrean: antreanDariBackend }) {
-  const antrean = Array.isArray(antreanDariBackend) ? antreanDariBackend : [];
+export default function AntreanPeriksa({ dokter = {}, antrean = [] }) {
   const [kata, setKata] = useState('');
   const [filter, setFilter] = useState('semua');
-  const [halaman, setHalaman] = useState(1);
-  const [memuat, setMemuat] = useState(false);
-  const [dipanggil, setDipanggil] = useState(null); // pasien yang akan dipanggil (isi Modal konfirmasi)
-  const [layarAntreanTerbuka, setLayarAntreanTerbuka] = useState(false);
+  const [layarDepan, setLayarDepan] = useState(false);
 
-  // Ringkasan untuk 4 kartu (dihitung dari seluruh antrean, bukan dari hasil filter)
-  const ringkasan = useMemo(() => ({
-    total: antrean.length,
-    sedang: antrean.filter((p) => p.status === 'sedang').length,
-    menunggu: antrean.filter((p) => p.status === 'menunggu').length,
-    selesai: antrean.filter((p) => p.status === 'selesai').length,
-  }), [antrean]);
-
-  // Pencarian: nama, No. RM (Modul 2 juga menyebut NIK; tambahkan p.nik bila BE sudah mengirimnya)
-  const terfilter = useMemo(() => {
+  const hasil = useMemo(() => antrean.filter((p) => {
     const q = kata.trim().toLowerCase();
-    return antrean.filter((p) => (filter === 'semua' || p.status === filter)
-      && (!q || p.nama.toLowerCase().includes(q) || String(p.rm).toLowerCase().includes(q)
-        || (p.nik ?? '').includes(q)));
-  }, [antrean, kata, filter]);
+    const cocokStatus = filter === 'semua' || p.status === filter;
+    return cocokStatus && (!q || `${p.nama} ${p.rm} ${p.nik}`.toLowerCase().includes(q));
+  }), [antrean, kata, filter]);
 
-  const totalHalaman = Math.max(1, Math.ceil(terfilter.length / JUMLAH_PER_HALAMAN));
-  const halamanAktif = Math.min(halaman, totalHalaman);
-  const mulai = (halamanAktif - 1) * JUMLAH_PER_HALAMAN;
-  const baris = terfilter.slice(mulai, mulai + JUMLAH_PER_HALAMAN);
+  const total = antrean.length;
+  const sedang = antrean.filter((x) => x.status === 'sedang').length;
+  const menunggu = antrean.filter((x) => x.status === 'menunggu').length;
+  const selesai = antrean.filter((x) => x.status === 'selesai').length;
 
-  function muatUlang(senyap = false) {
-    setMemuat(true);
-    router.reload({
-      only: ['antrean'],
-      preserveScroll: true,
-      onFinish: () => setMemuat(false),
-      onSuccess: () => { if (!senyap) toast.success('Daftar antrean diperbarui.'); },
-      onError: () => toast.error('Gagal memuat antrean, coba lagi.'),
-    });
-  }
-
-  // Sinkronisasi otomatis tiap 30 detik (sesuai catatan di Figma)
-  useEffect(() => {
-    const id = setInterval(() => muatUlang(true), INTERVAL_SINKRON_DETIK * 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  function bukaRM(p) {
-    router.visit(rute.dokter.riwayatMedis(p.pasienId ?? p.id), {
-      data: { antreanId: p.id },
-      onError: () => toast.error('Gagal mengambil riwayat medis, coba lagi.'), // pesan dari Modul 2
-    });
-  }
-
-  function konfirmasiPanggil() {
-    router.post(`/dokter/antrean-periksa/${dipanggil.id}/panggil`, {}, {
-      onSuccess: () => { toast.success(`Antrean ${dipanggil.no} diperbarui.`); setDipanggil(null); router.reload({ only: ['antrean'] }); },
-      onError: () => toast.error('Status antrean gagal diperbarui.'),
-    });
+  function panggil(item) {
+    router.post(`/dokter/antrean-periksa/${item.id}/panggil`, {}, { preserveScroll: true });
   }
 
   return (
     <AppLayout role="dokter" title="Antrean Periksa">
-      <PageHeader
-        icon={Stethoscope}
-        title="Daftar Antrean Ruang Periksa"
-        actions={(
-          <>
-            <span className="flex items-center gap-2 rounded-full bg-white px-3 py-1.5 shadow-card">
-              <span className="relative flex size-2.5">
-                <span className="absolute inset-0 animate-ping rounded-full bg-brand opacity-75" />
-                <span className="relative size-2.5 rounded-full bg-brand" />
-              </span>
-              <span className="text-[10px] font-semibold uppercase tracking-[0.5px] text-brand">Poli aktif melayani</span>
+      <header className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="flex items-center gap-2.5 text-3xl font-extrabold text-ink">
+            <Stethoscope className="size-7 text-brand" /> Daftar Antrean Ruang Periksa
+          </h1>
+          <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-ink-soft">
+            <b className="text-ink">{dokter.nama}</b>
+            <span>•</span>
+            <span className="inline-flex items-center gap-1 font-semibold text-brand">
+              <Building2 className="size-3.5" /> {dokter.poli}
             </span>
-            <Button variant="outline" icon={Radio} onClick={() => setLayarAntreanTerbuka(true)}>
-              Layar Antrean Depan
-            </Button>
-          </>
-        )}
-      >
-        <span className="font-semibold text-ink">{dokter.nama ?? 'Dokter'}</span>
-        <span className="text-ink-muted">•</span>
-        <span className="flex items-center gap-1 font-medium text-brand">
-          <Building2 className="size-3" />{dokter.poli ?? 'Poli'} ({dokter.ruang ?? 'Ruang pemeriksaan'})
-        </span>
-        <span className="text-ink-muted">•</span>
-        <span className="flex items-center gap-1"><CalendarDays className="size-3" />Hari Ini: {tanggalHariIni()}</span>
-      </PageHeader>
-
-      <section className="grid grid-cols-4 gap-4" aria-label="Ringkasan antrean">
-        <StatCard label="Total Antrean" value={ringkasan.total} unit="pasien" icon={Users} />
-        <StatCard label="Sedang Diperiksa" value={ringkasan.sedang} unit="pasien" icon={ClipboardCheck} tone="brand" />
-        <StatCard label="Menunggu Giliran" value={ringkasan.menunggu} unit="di ruang tunggu" icon={ClipboardClock} />
-        <StatCard label="Selesai Konsultasi" value={ringkasan.selesai} unit="terlayani" icon={CheckCircle2} />
-      </section>
-
-      <section className="rounded-2xl bg-white shadow-card">
-        <div className="flex items-center justify-between gap-4 p-4">
-          <div className="relative w-[448px] max-w-full">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-muted" />
-            <input
-              type="search" value={kata} onChange={(e) => { setKata(e.target.value); setHalaman(1); }}
-              placeholder="Cari nama pasien, No. RM..." aria-label="Cari pasien"
-              className="h-10 w-full rounded-lg bg-surface-low pl-10 pr-3 text-[13px] placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-brand/30"
-            />
-          </div>
-          <div className="flex items-center gap-3">
-            <select
-              value={filter} onChange={(e) => { setFilter(e.target.value); setHalaman(1); }} aria-label="Filter status"
-              className="h-10 rounded-lg bg-surface-low px-3 text-[13px] font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-brand/30"
-            >
-              {OPSI_FILTER_STATUS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-            <button type="button" aria-label="Muat ulang" onClick={() => muatUlang()} disabled={memuat}
-              className="flex size-10 items-center justify-center rounded-lg bg-surface-low text-ink hover:bg-surface-mid disabled:opacity-60">
-              <RefreshCw className={cn('size-4', memuat && 'animate-spin')} />
-            </button>
-            <span className="rounded-lg bg-surface-mid px-3 py-2 text-[10px] font-medium text-ink-soft">
-              Menampilkan <b className="text-ink">{JUMLAH_PER_HALAMAN}</b> Pasien Teratas
+            <span>•</span>
+            <span className="inline-flex items-center gap-1">
+              <CalendarDays className="size-3.5" /> {new Intl.DateTimeFormat('id-ID', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' }).format(new Date())}
             </span>
-          </div>
-        </div>
-
-        <Table>
-          <Thead>
-            <Tr>
-              <Th>No.<br />Antrean</Th>
-              <Th>Waktu<br />Kedatangan</Th>
-              <Th>No. RM</Th>
-              <Th>Nama Pasien &amp; Info</Th>
-              <Th>Status Triage / Vital Signs</Th>
-              <Th>Status Antrean</Th>
-              <Th className="text-right">Aksi Dokter</Th>
-            </Tr>
-          </Thead>
-          <Tbody>
-            {baris.length === 0 && (
-              <Tr><Td colSpan={7} className="py-12 text-center text-[13px] text-ink-muted">
-                Tidak ada pasien yang cocok dengan pencarian atau filter.
-              </Td></Tr>
-            )}
-            {baris.map((p) => {
-              const st = STATUS_PEMERIKSAAN[p.status];
-              const selesai = p.status === 'selesai';
-              const [jamKet1, ...jamKet2] = p.keterangan.split(' ');
-              return (
-                <Tr key={p.id} aktif={p.status === 'sedang'}>
-                  <Td><KotakNomor no={p.no} status={p.status} /></Td>
-                  <Td>
-                    <div className="flex items-start gap-1.5">
-                      {selesai ? <Check className="mt-1 size-3.5 text-ink-muted" /> : <Clock className="mt-1 size-3.5 text-brand" />}
-                      <div className="text-sm font-semibold leading-5">
-                        <p className={selesai ? 'text-ink-muted' : 'text-ink'}>{p.jam}<br />WIB</p>
-                        <p className="text-[10px] font-normal leading-[14px] text-ink-muted">{jamKet1} {jamKet2.join(' ')}</p>
-                      </div>
-                    </div>
-                  </Td>
-                  <Td>
-                    <p className="text-[13px] font-semibold leading-[18px] text-ink">ID Pasien {p.rm}</p>
-                    <p className="text-[10px] leading-[14px] text-ink-muted">NIK: {p.nik}</p>
-                  </Td>
-                  <Td>
-                    <div className="flex items-center gap-3">
-                      <span className={cn(
-                        'flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-bold',
-                        p.status === 'sedang' ? 'bg-brand/20 text-brand' : 'bg-surface-mid text-ink-soft',
-                        selesai && 'text-ink-muted',
-                      )}>{inisial(p.nama)}</span>
-                      <div>
-                        <p className="whitespace-nowrap text-base font-semibold leading-6 text-ink">{p.nama}</p>
-                        <p className="text-[13px] text-ink-soft">{p.jk} • {p.umur} tahun</p>
-                      </div>
-                    </div>
-                  </Td>
-                  <Td><SelTriage p={p} /></Td>
-                  <Td><Badge tone={st.tone} dot={st.dot} check={st.check}>{st.label}</Badge></Td>
-                  <Td>
-                    <div className="flex items-center justify-end gap-2">
-                      {p.status === 'sedang' && <Button icon={FolderOpen} onClick={() => bukaRM(p)}>Buka RM</Button>}
-                      {p.status === 'menunggu' && (
-                        <>
-                          {p.id === antrean.find((x) => x.status === 'menunggu')?.id ? (
-                            <>
-                              <Button icon={Megaphone} onClick={() => setDipanggil(p)}>Panggil</Button>
-                              <Button variant="secondary" aria-label={`Buka RM ${p.nama}`} onClick={() => bukaRM(p)}><FolderOpen className="size-4" /></Button>
-                            </>
-                          ) : (
-                            <Button variant="secondary" icon={FolderOpen} onClick={() => bukaRM(p)}>Buka RM</Button>
-                          )}
-                        </>
-                      )}
-                      {selesai && <Button variant="secondary" icon={FileText} className="text-ink-soft" onClick={() => bukaRM(p)}>Resume Medis</Button>}
-                    </div>
-                  </Td>
-                </Tr>
-              );
-            })}
-          </Tbody>
-        </Table>
-
-        <div className="flex items-center justify-between p-4">
-          <p className="text-[13px] text-ink-soft">
-            {terfilter.length === 0
-              ? 'Tidak ada data antrean.'
-              : `Menampilkan ${mulai + 1}-${mulai + baris.length} dari ${terfilter.length} total antrean poli hari ini`}
           </p>
-          <Pagination halaman={halamanAktif} totalHalaman={totalHalaman} onUbah={setHalaman} />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Badge tone="success" dot>POLI AKTIF MELAYANI</Badge>
+          <Button variant="outline" icon={Radio} onClick={() => setLayarDepan(true)}>Layar Antrean Depan</Button>
+        </div>
+      </header>
+
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="TOTAL ANTREAN" value={total} unit="pasien" icon={Users} />
+        <StatCard label="SEDANG DIPERIKSA" value={sedang} unit="di ruang poli" icon={ClipboardCheck} tone="brand" />
+        <StatCard label="MENUNGGU GILIRAN" value={menunggu} unit="di ruang tunggu" icon={ClipboardClock} />
+        <StatCard label="SELESAI KONSULTASI" value={selesai} unit="terlayani" icon={CheckCircle2} />
+      </section>
+
+      <section className="rounded-2xl bg-white shadow-card overflow-hidden">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line p-4">
+          <label className="relative w-full sm:w-80">
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-muted" />
+            <input
+              value={kata}
+              onChange={(e) => setKata(e.target.value)}
+              placeholder="Cari nama pasien, No. RM..."
+              className="h-10 w-full rounded-xl bg-surface-input pl-9 pr-3 text-xs outline-none focus:ring-2 focus:ring-brand/30"
+            />
+          </label>
+          <div className="flex items-center gap-2">
+            <select
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              className="h-10 rounded-xl bg-surface-input px-3 text-xs font-semibold outline-none"
+            >
+              <option value="semua">Semua Status</option>
+              <option value="sedang">Sedang Diperiksa</option>
+              <option value="menunggu">Menunggu Giliran</option>
+              <option value="selesai">Selesai</option>
+            </select>
+            <Button variant="outline" icon={RefreshCw} onClick={() => router.reload({ only: ['antrean'] })}>
+              Muat Ulang
+            </Button>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-surface-low text-[10px] font-bold uppercase tracking-wider text-ink-muted">
+              <tr>
+                <th className="px-5 py-3.5">No. Antrean</th>
+                <th className="px-4 py-3.5">Waktu</th>
+                <th className="px-4 py-3.5">No. RM</th>
+                <th className="px-4 py-3.5">Nama Pasien</th>
+                <th className="px-4 py-3.5">Status Triage / Vital</th>
+                <th className="px-4 py-3.5">Status Antrean</th>
+                <th className="px-5 py-3.5 text-right">Aksi Dokter</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {hasil.length > 0 ? hasil.map((p) => (
+                <tr key={p.id} className={p.status === 'sedang' ? 'bg-brand-light/40' : 'hover:bg-surface/60'}>
+                  <td className="px-5 py-4">
+                    <span className={`inline-flex rounded-xl px-3 py-2 text-sm font-extrabold ${
+                      p.status === 'sedang' ? 'bg-brand text-white' : 'bg-surface-mid text-ink'
+                    }`}>
+                      {p.no}
+                    </span>
+                  </td>
+                  <td className="px-4 py-4 font-bold text-ink">{p.jam} WIB</td>
+                  <td className="px-4 py-4">
+                    <p className="font-bold text-ink">{p.rm}</p>
+                    <p className="text-[10px] text-ink-muted">NIK: {p.nik}</p>
+                  </td>
+                  <td className="px-4 py-4">
+                    <p className="font-bold text-ink text-sm">{p.nama}</p>
+                    <p className="text-[11px] text-ink-soft">{p.jk} • {p.umur ?? '—'} tahun</p>
+                  </td>
+                  <td className="px-4 py-4">
+                    {p.triage ? (
+                      <div>
+                        <Badge tone="success">Triage Selesai</Badge>
+                        <p className="mt-1 text-[10px] text-ink-soft">TD {p.triage.td} • Suhu {p.triage.suhu}°C</p>
+                      </div>
+                    ) : (
+                      <Badge tone="warning">Belum Triage</Badge>
+                    )}
+                  </td>
+                  <td className="px-4 py-4">
+                    <Badge tone={p.status === 'sedang' ? 'brand' : p.status === 'selesai' ? 'success' : 'neutral'} dot>
+                      {p.status === 'sedang' ? 'Sedang Diperiksa' : p.status === 'selesai' ? 'Selesai' : 'Menunggu Giliran'}
+                    </Badge>
+                  </td>
+                  <td className="px-5 py-4">
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      {p.status === 'menunggu' && (
+                        <Button variant="outline" icon={Megaphone} onClick={() => panggil(p)}>Panggil</Button>
+                      )}
+                      <Button
+                        icon={FolderOpen}
+                        variant={p.status === 'selesai' ? 'outline' : 'primary'}
+                        onClick={() => router.visit(`${rute.dokter.riwayatMedis(p.pasienId)}?antreanId=${p.id}`)}
+                      >
+                        Buka RM
+                      </Button>
+                      {p.hasDiagnosis && (
+                        <Button
+                          variant={p.eresepStatus === 'ditolak' ? 'danger' : 'softBrand'}
+                          icon={FileText}
+                          onClick={() => router.visit(rute.dokter.formEResep(p.id))}
+                        >
+                          {p.eresepStatus === 'ditolak' ? 'Perbaiki E-Resep' : p.eresepStatus ? 'Edit E-Resep' : 'Buat E-Resep'}
+                        </Button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              )) : (
+                <tr>
+                  <td colSpan={7} className="py-12 text-center text-ink-muted">
+                    Belum ada pasien yang memesan jadwal Anda pada hari ini.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </section>
 
-      <Callout aside={`Sinkronisasi otomatis tiap ${INTERVAL_SINKRON_DETIK} dtk`}>
-        <>Antrean diambil dari reservasi dan status triage yang tersimpan di database.</>
-      </Callout>
-
-      <Modal
-        open={!!dipanggil} onClose={() => setDipanggil(null)} title="Panggil pasien?"
-        description={dipanggil && `${dipanggil.no} • ${dipanggil.nama} (ID Pasien ${dipanggil.rm})`}
-        footer={(
-          <>
-            <Button variant="secondary" onClick={() => setDipanggil(null)}>Batal</Button>
-            <Button icon={Megaphone} onClick={konfirmasiPanggil}>Ya, Panggil</Button>
-          </>
-        )}
-      >
-        Pasien akan dipanggil ke ruang pemeriksaan. Pastikan pemeriksaan pasien sebelumnya sudah selesai.
-      </Modal>
-
-      <Modal
-        open={layarAntreanTerbuka}
-        onClose={() => setLayarAntreanTerbuka(false)}
-        title="Layar Antrean Ruang Periksa"
-        description="Pratinjau antrean poli saat ini."
-        size="lg"
-        footer={<Button onClick={() => setLayarAntreanTerbuka(false)}>Tutup</Button>}
-      >
-        <div className="space-y-2">
-          {antrean.filter((pasien) => pasien.status !== 'selesai').slice(0, 5).map((pasien) => (
-            <div key={pasien.id} className="flex items-center justify-between rounded-xl bg-surface-low p-3">
-              <span><b className="block text-lg">{pasien.no}</b><span>{pasien.nama}</span></span>
-              <Badge tone={pasien.status === 'sedang' ? 'success' : 'muted'} dot>{pasien.status === 'sedang' ? 'Sedang diperiksa' : 'Menunggu giliran'}</Badge>
+      <Modal open={layarDepan} onClose={() => setLayarDepan(false)} title="Layar Antrean Depan" subtitle={`${dokter.poli} — ${dokter.nama}`}>
+        <div className="space-y-4 text-center">
+          <div className="rounded-2xl bg-brand p-6 text-white">
+            <p className="text-xs font-bold uppercase tracking-widest opacity-80">SEDANG DIPERIKSA</p>
+            <p className="mt-2 text-5xl font-extrabold">{antrean.find((x) => x.status === 'sedang')?.no || '—'}</p>
+            <p className="mt-1 text-sm font-semibold">{antrean.find((x) => x.status === 'sedang')?.nama || 'Belum ada pasien dipanggil'}</p>
+          </div>
+          <div className="rounded-xl bg-surface-low p-4 text-left">
+            <p className="text-[11px] font-bold uppercase text-ink-muted">ANTREAN BERIKUTNYA</p>
+            <div className="mt-2 space-y-1.5 text-xs">
+              {antrean.filter((x) => x.status === 'menunggu').slice(0, 3).map((x) => (
+                <div key={x.id} className="flex justify-between">
+                  <b>{x.no} — {x.nama}</b>
+                  <span className="text-ink-muted">{x.jam} WIB</span>
+                </div>
+              ))}
+              {antrean.filter((x) => x.status === 'menunggu').length === 0 && <p className="text-ink-muted">Tidak ada antrean menunggu.</p>}
             </div>
-          ))}
+          </div>
         </div>
       </Modal>
     </AppLayout>

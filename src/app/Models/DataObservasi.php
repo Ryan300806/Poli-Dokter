@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
-/** Entitas DataObservasi dengan operasi pembacaan triage terbaru. */
+/** Entitas DataObservasi sesuai Class Diagram. */
 class DataObservasi extends Model
 {
     protected $table = 'observasi';
@@ -14,34 +14,42 @@ class DataObservasi extends Model
 
     public $timestamps = false;
 
-    protected $fillable = ['id_antrean', 'tekanan_darah', 'suhu', 'berat_badan', 'waktu_observasi'];
+    protected $fillable = ['id_antrean', 'id_perawat', 'tekanan_darah', 'suhu', 'berat_badan', 'waktu_observasi'];
 
-    /** Simpan observasi pada antrean tertentu (skema DB mengaitkan observasi ke antrean). */
-    public static function simpanUntukAntrean(int $idAntrean, string $tekananDarah, float $suhu, float $beratBadan): bool
+    public static function simpanUntukAntrean(int $idAntrean, string $tekananDarah, float $suhu, float $beratBadan, ?int $idPerawat = null): bool
     {
-        return (bool) static::query()->create([
-            'id_antrean' => $idAntrean,
-            'tekanan_darah' => $tekananDarah,
-            'suhu' => $suhu,
-            'berat_badan' => $beratBadan,
-            'waktu_observasi' => now(),
-        ])->exists;
+        return DB::transaction(function () use ($idAntrean, $tekananDarah, $suhu, $beratBadan, $idPerawat) {
+            static::query()->create([
+                'id_antrean' => $idAntrean,
+                'id_perawat' => $idPerawat,
+                'tekanan_darah' => $tekananDarah,
+                'suhu' => $suhu,
+                'berat_badan' => $beratBadan,
+                'waktu_observasi' => now(),
+            ]);
+
+            DB::table('antrean')
+                ->where('id_antrean', $idAntrean)
+                ->where('status_antrean', 'menunggu')
+                ->update(['status_antrean' => 'triage_selesai']);
+
+            return true;
+        });
     }
 
-    /** Operasi diagram: cari antrean terbaru milik pasien lalu simpan observasinya. */
-    public static function simpanObservasi(int $idPasien, string $tekananDarah, float $suhu, float $beratBadan): bool
+    public static function simpanObservasi(int $idPasien, string $tekananDarah, float $suhu, float $beratBadan, ?int $idPerawat = null): bool
     {
         $idAntrean = DB::table('antrean')->where('id_pasien', $idPasien)
             ->orderByDesc('tanggal_antrean')->value('id_antrean');
 
-        return $idAntrean ? static::simpanUntukAntrean((int) $idAntrean, $tekananDarah, $suhu, $beratBadan) : false;
+        return $idAntrean ? static::simpanUntukAntrean((int) $idAntrean, $tekananDarah, $suhu, $beratBadan, $idPerawat) : false;
     }
 
     public static function ambilDataObservasi(int $idObservasi): ?array
     {
-        $observasi = static::query()->whereKey($idObservasi)->first();
-
-        return $observasi?->only(['id_observasi', 'id_antrean', 'tekanan_darah', 'suhu', 'berat_badan', 'waktu_observasi']);
+        return static::query()->whereKey($idObservasi)->first()?->only([
+            'id_observasi', 'id_antrean', 'id_perawat', 'tekanan_darah', 'suhu', 'berat_badan', 'waktu_observasi',
+        ]);
     }
 
     public static function ambilTerbaruUntukAntrean(int $idAntrean): ?self
@@ -51,11 +59,7 @@ class DataObservasi extends Model
 
     public static function updateDataObservasi(int $idObservasi, array $dataBaru): bool
     {
-        return static::query()->whereKey($idObservasi)->update([
-            'tekanan_darah' => $dataBaru['tekanan_darah'],
-            'suhu' => $dataBaru['suhu'],
-            'berat_badan' => $dataBaru['berat_badan'],
-        ]) > 0;
+        return static::query()->whereKey($idObservasi)->update($dataBaru) > 0;
     }
 
     public static function ambilTriageTerbaru(int $idPasien): array

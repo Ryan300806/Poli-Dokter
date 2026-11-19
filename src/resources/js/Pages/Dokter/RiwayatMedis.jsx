@@ -1,148 +1,157 @@
-import { useMemo, useState } from 'react';
 import { router } from '@inertiajs/react';
-import {
-  ArrowLeft, ArrowRight, ClipboardList, Download, FileHeart, HeartPulse, Search,
-  ShieldAlert, Stethoscope, Weight,
-} from 'lucide-react';
+import { ArrowLeft, ArrowRight, ClipboardList, HeartPulse, ShieldAlert, Stethoscope } from 'lucide-react';
 import AppLayout from '../../Layouts/AppLayout';
 import Button from '../../Components/ui/Button';
 import Badge from '../../Components/ui/Badge';
-import { Input } from '../../Components/ui/Input';
 import { rute } from '../../lib/rute';
 
-function ProfilPasien({ pasien, onKembali, riwayatMedis, triageTerbaru, antreanId }) {
+export default function RiwayatMedis({ daftarPasien = null, pasien = null, riwayatMedis = {}, triageTerbaru = {}, riwayatDiagnosis = [], antreanId = null }) {
+  // Mode 1: Daftar pasien poli dokter (_p23)
+  if (Array.isArray(daftarPasien)) {
+    return (
+      <AppLayout role="dokter" title="Riwayat Medis Pasien">
+        <header>
+          <h1 className="text-3xl font-extrabold text-ink">Riwayat Medis Pasien</h1>
+          <p className="mt-1 text-xs text-ink-soft">Daftar pasien yang terdaftar pada jadwal praktek Anda.</p>
+        </header>
+
+        <div className="space-y-4">
+          {daftarPasien.length > 0 ? daftarPasien.map((p) => (
+            <article key={p.id} className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-white p-5 shadow-card">
+              <div className="flex items-center gap-4">
+                <span className="flex size-14 items-center justify-center rounded-2xl bg-brand-light-active text-lg font-extrabold text-brand-dark">
+                  {p.nama.slice(0, 2).toUpperCase()}
+                </span>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-bold text-ink">{p.nama}</h2>
+                    <Badge tone="success">{p.rm}</Badge>
+                  </div>
+                  <p className="mt-0.5 text-xs text-ink-muted">NIK: {p.nik} • {p.umur} Tahun ({p.jk})</p>
+                  <p className="mt-1 text-xs text-ink-soft">Gol. Darah: <b>{p.golDarah}</b> • Telp: <b>{p.telepon}</b></p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <div className="rounded-xl bg-danger-light px-4 py-2.5 text-danger">
+                  <p className="flex items-center gap-1 text-[10px] font-bold uppercase"><ShieldAlert className="size-3.5" /> Peringatan Alergi</p>
+                  <p className="mt-0.5 text-xs font-bold">{p.alergi.join(', ')}</p>
+                </div>
+                <Button icon={ArrowRight} onClick={() => router.visit(rute.dokter.riwayatMedis(p.id))}>
+                  Lihat Detail
+                </Button>
+              </div>
+            </article>
+          )) : (
+            <div className="rounded-2xl bg-white p-12 text-center text-xs text-ink-muted shadow-card">
+              Belum ada pasien yang tercatat pada jadwal Anda.
+            </div>
+          )}
+        </div>
+      </AppLayout>
+    );
+  }
+
+  // Mode 2: Detail Riwayat Medis Pasien (_p27)
+  const alergiText = riwayatMedis?.alergi && riwayatMedis.alergi !== '-' ? riwayatMedis.alergi : 'Tidak ada data alergi';
+  const rmCode = `RM-${String(pasien?.id_pasien ?? 0).padStart(6, '0')}`;
+
   return (
-    <>
-      <div className="flex items-center justify-between">
-        <Button variant="ghost" icon={ArrowLeft} onClick={onKembali}>Kembali ke daftar</Button>
-        <Button variant="outline" icon={Download} onClick={() => window.print()}>Cetak / Simpan PDF</Button>
+    <AppLayout role="dokter" title="Detail Riwayat Medis">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Button variant="ghost" icon={ArrowLeft} onClick={() => router.visit(rute.dokter.antreanPeriksa)}>
+          Kembali ke Antrean
+        </Button>
+        {antreanId && (
+          <Button icon={Stethoscope} onClick={() => router.visit(rute.dokter.formDiagnosis(antreanId))}>
+            Lanjut ke Form Diagnosis
+          </Button>
+        )}
       </div>
-      <section className="flex flex-wrap items-center justify-between gap-5 rounded-2xl bg-white p-5 shadow-card">
+
+      <section className="flex flex-wrap items-center justify-between gap-5 rounded-2xl bg-white p-6 shadow-card">
         <div className="flex items-center gap-4">
-          <span aria-hidden="true" className="flex size-16 items-center justify-center rounded-xl bg-brand-light-active text-xl font-bold text-brand">{pasien.nama.split(' ').map((part) => part[0]).slice(0, 2).join('')}</span>
+          <span className="flex size-16 items-center justify-center rounded-2xl bg-brand-light-active text-xl font-extrabold text-brand-dark">
+            {pasien?.nama_lengkap?.slice(0, 2).toUpperCase()}
+          </span>
           <div>
-            <h1 className="text-2xl font-bold">{pasien.nama} <Badge tone="success">ID Pasien {pasien.rm}</Badge></h1>
-            <p className="mt-1 text-[11px] text-ink-muted">NIK: {pasien.nik}</p>
-            <p className="mt-2 flex flex-wrap gap-3 text-[11px] text-ink-soft"><span>{pasien.umur} Tahun ({pasien.tanggalLahir})</span><span>{pasien.jk}</span><span>{pasien.golDarah}</span><span>{pasien.telepon}</span></p>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-2xl font-extrabold text-ink">{pasien?.nama_lengkap}</h1>
+              <Badge tone="success">{rmCode}</Badge>
+            </div>
+            <p className="mt-1 text-xs text-ink-muted">NIK: {pasien?.nik}</p>
+            <p className="mt-1 text-xs text-ink-soft">
+              {pasien?.tempat_lahir}, {pasien?.tanggal_lahir} • {pasien?.jenis_kelamin === 'P' ? 'Perempuan' : 'Laki-laki'} • Gol. {pasien?.golongan_darah || '—'}
+            </p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="rounded-xl bg-danger-light p-3 text-danger">
-            <p className="flex items-center gap-1 text-[9px] font-bold uppercase"><ShieldAlert className="size-3" />Peringatan Alergi</p>
-            <p className="mt-1 text-xs font-semibold">{pasien.alergi.join(', ')}</p>
-          </div>
-          <div className="rounded-xl bg-surface-low p-3"><small className="block text-[9px] uppercase text-ink-muted">Antrean Dokter</small><b className="text-xl text-brand">{pasien.antrean}</b></div>
+
+        <div className="rounded-xl bg-danger-light p-3.5 text-danger">
+          <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase"><ShieldAlert className="size-4" /> Peringatan Alergi</p>
+          <p className="mt-1 text-xs font-bold">{alergiText}</p>
         </div>
       </section>
 
-      <div className="grid gap-4 xl:grid-cols-[1.05fr_1fr]">
-        <div className="space-y-4">
+      <div className="grid gap-6 xl:grid-cols-[1.1fr_1fr]">
+        <div className="space-y-6">
           <section className="rounded-2xl bg-white p-5 shadow-card">
-            <h2 className="flex items-center gap-2 font-bold"><HeartPulse className="size-5 text-brand" />Hasil Observasi Triage Terakhir</h2>
-            <p className="mt-1 text-[10px] text-ink-muted">Waktu pemeriksaan: {triageTerbaru?.waktu_observasi ?? 'Belum tercatat'}</p>
-            <Badge tone="success" className="mt-3">Status Stabil</Badge>
-            <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-3">
+            <h2 className="flex items-center gap-2 text-base font-bold text-ink">
+              <HeartPulse className="size-5 text-brand" /> Hasil Observasi Triage Terakhir
+            </h2>
+            <p className="mt-1 text-[11px] text-ink-muted">Waktu pemeriksaan: {triageTerbaru?.waktu_observasi || 'Belum tercatat'}</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
               {[
-              ['Tekanan Darah', triageTerbaru?.tekanan_darah ?? 'Belum tercatat'], ['Suhu Tubuh', triageTerbaru?.suhu ?? 'Belum tercatat'], ['Berat Badan', triageTerbaru?.berat_badan ?? 'Belum tercatat'],
-              ].map(([label, value]) => <div key={label} className="rounded-lg bg-surface-low p-3"><small className="block text-[9px] uppercase text-ink-muted">{label}</small><b className="text-base">{value}</b></div>)}
+                ['TEKANAN DARAH', triageTerbaru?.tekanan_darah ? `${triageTerbaru.tekanan_darah} mmHg` : '—'],
+                ['SUHU TUBUH', triageTerbaru?.suhu ? `${triageTerbaru.suhu} °C` : '—'],
+                ['BERAT BADAN', triageTerbaru?.berat_badan ? `${triageTerbaru.berat_badan} kg` : '—'],
+              ].map(([label, val]) => (
+                <div key={label} className="rounded-xl bg-surface-low p-3.5">
+                  <p className="text-[10px] font-bold uppercase text-ink-muted">{label}</p>
+                  <p className="mt-1 text-base font-extrabold text-ink">{val}</p>
+                </div>
+              ))}
             </div>
           </section>
 
           <section className="rounded-2xl bg-white p-5 shadow-card">
-            <h2 className="flex items-center gap-2 font-bold"><ClipboardList className="size-5 text-danger" />Keluhan &amp; Riwayat Penyakit</h2>
-            <p className="mt-3 text-[9px] font-semibold uppercase tracking-wide text-ink-muted">Keluhan utama (anamnesis hari ini)</p>
-            <p className="mt-1 text-sm leading-6">{pasien.keluhan}</p>
-            <div className="mt-4 grid gap-4 border-t border-line pt-4 md:grid-cols-2">
-              <div><p className="text-[9px] font-semibold uppercase tracking-wide text-ink-muted">Riwayat Penyakit Dahulu (RPD)</p><ul className="mt-2 list-inside list-disc space-y-1 text-[11px]">{(riwayatMedis?.riwayat_penyakit ? [riwayatMedis.riwayat_penyakit] : pasien.penyakit).map((item) => <li key={item}>{item}</li>)}</ul></div>
-              <div><p className="text-[9px] font-semibold uppercase tracking-wide text-danger">Rincian Alergi &amp; Reaksi Obat</p><p className="mt-2 rounded-lg bg-danger-light p-3 text-[11px] text-danger"><b>{pasien.alergi[0]}</b><br />{pasien.alergi[0] === 'Tidak ada data alergi' ? 'Data alergi belum tersedia di rekam medis.' : 'Verifikasi informasi alergi sebelum memberikan obat.'}</p></div>
+            <h2 className="flex items-center gap-2 text-base font-bold text-ink">
+              <ClipboardList className="size-5 text-danger" /> Riwayat Penyakit &amp; Alergi
+            </h2>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <div className="rounded-xl bg-surface-low p-4">
+                <p className="text-[10px] font-bold uppercase text-ink-muted">RIWAYAT PENYAKIT DAHULU (RPD)</p>
+                <p className="mt-2 text-xs font-semibold text-ink">{riwayatMedis?.riwayat_penyakit || 'Nihil'}</p>
+              </div>
+              <div className="rounded-xl bg-danger-light p-4 text-danger">
+                <p className="text-[10px] font-bold uppercase">RINCIAN ALERGI</p>
+                <p className="mt-2 text-xs font-bold">{alergiText}</p>
+              </div>
             </div>
-            <p className="mt-4 border-t border-line pt-3 text-[11px]"><b>Obat rutin saat ini:</b> {pasien.obatRutin}</p>
           </section>
         </div>
 
-        <div className="space-y-4">
-          <section className="rounded-2xl bg-white p-5 shadow-card">
-            <div className="flex items-center justify-between"><h2 className="flex items-center gap-2 font-bold"><FileHeart className="size-5 text-brand" />Rekam Medis Terdahulu</h2><span className="text-[10px] text-brand">Riwayat kunjungan &amp; tindakan di RS</span></div>
-            <ol className="mt-4 space-y-4 border-l border-line pl-4">
-              {pasien.riwayat.map((item) => <li key={`${item.tanggal}-${item.tipe}`} className="relative rounded-lg bg-surface-low p-3 before:absolute before:-left-[21px] before:top-4 before:size-3 before:rounded-full before:bg-brand">
-                <div className="flex items-center justify-between text-[10px] text-ink-muted"><span>{item.tanggal} • {item.tipe}</span><Badge tone="success">{item.status}</Badge></div>
-                <p className="mt-2 text-xs font-bold">{item.poli}</p><p className="mt-1 text-[11px]">{item.diagnosis}</p>
-                {item.tipe === 'Rawat Jalan' && <div className="mt-2 flex gap-2"><button type="button" className="text-[10px] font-semibold text-brand" onClick={() => router.visit(rute.dokter.formEResep(antreanId))}>E-Resep</button></div>}
-              </li>)}
-            </ol>
-          </section>
-          <section className="rounded-2xl bg-white p-5 shadow-card">
-            <h2 className="flex items-center gap-2 font-bold"><Stethoscope className="size-5 text-brand" />Pemeriksaan Penunjang Cepat</h2>
-            <p className="mt-1 text-[10px] text-ink-muted">Hasil radiologi dan lab 30 hari terakhir</p>
-            <p className="mt-3 rounded-lg bg-surface-low p-3 text-xs text-ink-muted">Belum ada data pemeriksaan penunjang pada rekam medis pasien.</p>
-          </section>
-          <Button icon={Weight} className="w-full" disabled={!antreanId} onClick={() => router.visit(rute.dokter.formDiagnosis(antreanId))}>Lanjutkan ke Form Diagnosis</Button>
-        </div>
+        <section className="rounded-2xl bg-white p-5 shadow-card">
+          <div className="flex items-center justify-between border-b border-line pb-3">
+            <h2 className="text-base font-bold text-ink">Rekam Medis Terdahulu</h2>
+            <Badge tone="neutral">{riwayatDiagnosis.length} Catatan</Badge>
+          </div>
+          <div className="mt-4 space-y-3">
+            {riwayatDiagnosis.length > 0 ? riwayatDiagnosis.map((d) => (
+              <div key={d.id_diagnosis} className="rounded-xl border-l-4 border-brand bg-surface-low p-4 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-brand">{d.tanggal_antrean}</span>
+                  <Badge tone="success">{d.status_pemeriksaan}</Badge>
+                </div>
+                <p className="mt-1 font-bold text-ink">{d.nama_poli} — {d.nama_dokter}</p>
+                <p className="mt-1 text-ink-soft"><b>Diagnosis:</b> {d.nama_diagnosis}</p>
+                <p className="mt-0.5 text-ink-muted"><b>Tindakan:</b> {d.rencana_tindakan}</p>
+              </div>
+            )) : (
+              <p className="py-8 text-center text-xs text-ink-muted">Belum ada catatan diagnosis terdahulu.</p>
+            )}
+          </div>
+        </section>
       </div>
-    </>
-  );
-}
-
-export default function RiwayatMedis({ antreanId, pasien: dataPasien, daftarPasien, riwayatMedis = null, triageTerbaru = null }) {
-  const [kata, setKata] = useState('');
-  const pasienTerpilih = dataPasien ? {
-    id: String(dataPasien.id_pasien),
-    nama: dataPasien.nama_lengkap,
-    rm: String(dataPasien.id_pasien),
-    jaminan: null,
-    nik: dataPasien.nik,
-    rujukan: '—',
-    umur: dataPasien.tanggal_lahir ? Math.max(0, new Date().getFullYear() - new Date(dataPasien.tanggal_lahir).getFullYear()) : '—',
-    tanggalLahir: dataPasien.tanggal_lahir ?? '—',
-    jk: dataPasien.jenis_kelamin === 'P' ? 'Perempuan' : 'Laki-laki',
-    golDarah: dataPasien.golongan_darah ?? 'Golongan darah belum tercatat',
-    telepon: dataPasien.kontak_darurat ?? '—',
-    alergi: riwayatMedis?.alergi && riwayatMedis.alergi !== '-' ? [riwayatMedis.alergi] : ['Tidak ada data alergi'],
-    antrean: triageTerbaru?.id_antrean ?? '—',
-    td: triageTerbaru?.tekanan_darah ?? '—',
-    suhu: triageTerbaru?.suhu ?? '—',
-    nadi: '—', respirasi: '—', spo2: '—', berat: triageTerbaru?.berat_badan ?? '—', tinggi: '—',
-    catatanPerawat: 'Catatan tidak tersedia pada data observasi ini.',
-    keluhan: 'Keluhan belum tercatat.',
-    penyakit: riwayatMedis?.riwayat_penyakit && riwayatMedis.riwayat_penyakit !== 'Nihil' ? [riwayatMedis.riwayat_penyakit] : ['Nihil'],
-    obatRutin: 'Data obat rutin belum tersedia.',
-    riwayat: [],
-  } : null;
-  const sumberDaftar = Array.isArray(daftarPasien) ? daftarPasien : [];
-  const daftar = useMemo(() => sumberDaftar.filter((pasien) => {
-    const q = kata.trim().toLowerCase();
-    return !q || pasien.nama.toLowerCase().includes(q) || pasien.rm.toLowerCase().includes(q) || pasien.nik.includes(q);
-  }), [kata, sumberDaftar]);
-
-  return (
-    <AppLayout role="dokter" title="Riwayat Medis">
-      {pasienTerpilih ? (
-        <><div className="flex justify-end"><Badge tone="success">Data database</Badge></div><ProfilPasien pasien={pasienTerpilih} riwayatMedis={riwayatMedis} triageTerbaru={triageTerbaru} antreanId={antreanId} onKembali={() => router.visit(rute.dokter.riwayatMedis())} /></>
-      ) : (
-        <>
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div><h1 className="flex items-center gap-2 text-[28px] font-bold">Daftar Rekam Medis <Badge tone="success">Data database</Badge></h1><p className="text-[13px] text-ink-muted">Pilih pasien untuk melihat riwayat medis dan informasi klinis.</p></div>
-            <div className="w-full md:w-80"><Input icon={Search} value={kata} onChange={(e) => setKata(e.target.value)} placeholder="Cari nama, No. RM, atau NIK..." aria-label="Cari pasien" /></div>
-          </div>
-          <div className="space-y-4">
-            {daftar.map((pasien) => <article key={pasien.id} className="flex flex-wrap items-center justify-between gap-5 rounded-2xl bg-white p-5 shadow-card">
-              <div className="flex items-center gap-4">
-                <span aria-hidden="true" className="flex size-16 items-center justify-center rounded-xl bg-brand-light-active text-xl font-bold text-brand">{pasien.nama.split(' ').map((part) => part[0]).slice(0, 2).join('')}</span>
-                <div><h2 className="text-xl font-bold">{pasien.nama} <span className="rounded bg-brand-light-active px-2 py-1 text-[10px] font-semibold text-brand-dark">ID Pasien {pasien.rm}</span></h2>
-                  <p className="mt-1 text-[10px] text-ink-muted">NIK: {pasien.nik}</p>
-                  <p className="mt-2 flex flex-wrap gap-3 text-[11px] text-ink-soft"><span>{pasien.umur} Tahun</span><span>{pasien.jk}</span><span>{pasien.golDarah}</span><span>{pasien.telepon}</span></p></div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="rounded-lg bg-danger-light p-3 text-danger"><small className="flex items-center gap-1 text-[9px] font-bold uppercase"><ShieldAlert className="size-3" />Peringatan Alergi</small><b className="text-xs">{pasien.alergi.join(', ')}</b></div>
-                <div className="rounded-lg bg-surface-low p-3"><small className="block text-[9px] uppercase text-ink-muted">Antrean Dokter</small><b className="text-xl text-brand">{pasien.antrean}</b><Badge tone="success">Giliran Periksa</Badge></div>
-                <Button icon={ArrowRight} onClick={() => router.visit(rute.dokter.riwayatMedis(pasien.id))}>Lihat Detail</Button>
-              </div>
-            </article>)}
-            {daftar.length === 0 && <p className="rounded-xl bg-white p-10 text-center text-sm text-ink-muted">Tidak ada pasien yang cocok dengan pencarian.</p>}
-          </div>
-          <p className="text-xs text-ink-muted">Menampilkan {daftar.length} data pasien</p>
-        </>
-      )}
     </AppLayout>
   );
 }

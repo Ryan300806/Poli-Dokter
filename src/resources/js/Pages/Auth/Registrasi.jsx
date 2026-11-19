@@ -1,382 +1,284 @@
-// MF-IM-001 | UI-001 | Registrasi Pasien Baru | Penulis: MF
-// Sumber desain: Figma node 129:2075. Sumber kebutuhan: Modul 2 bagian 3.7 (UI-001).
-// Rute: GET /registrasi  (routes/fe/mf.php, nama rute: registrasi)
 import { useState } from 'react';
-import { Head, router } from '@inertiajs/react';
-import {
-  ArrowLeft, ArrowRight, Asterisk, Contact, Eye, EyeOff, Lock, Mars, ShieldCheck, User, UserPlus, Venus,
-} from 'lucide-react';
+import { Head, Link, router } from '@inertiajs/react';
+import { ArrowLeft, ArrowRight, Eye, EyeOff, Mars, ShieldCheck, UserPlus, Venus } from 'lucide-react';
 import Button from '../../Components/ui/Button';
-import { Input, Textarea } from '../../Components/ui/Input';
-import { toast } from '../../Components/ui/Toast';
-import { cn } from '../../lib/cn';
+import { rute } from '../../lib/rute';
 
-// URL halaman login. Kalau lib/rute.js sudah punya rute login, ganti dengan itu.
-const URL_LOGIN = '/login';
+export default function Registrasi({ errors: serverErrors = {} }) {
+  const [form, setForm] = useState({
+    nik: '',
+    namaLengkap: '',
+    tempatLahir: '',
+    tanggalLahir: '',
+    alamat: '',
+    jenisKelamin: '',
+    namaKontakDarurat: '',
+    noKontakDarurat: '',
+    kataSandi: '',
+    ulangiKataSandi: '',
+    setuju: false,
+  });
+  const [lihat1, setLihat1] = useState(false);
+  const [lihat2, setLihat2] = useState(false);
+  const [errors, setErrors] = useState({});
 
-const NIK_PANJANG = 16;
-// Kata sandi: minimal 8 karakter, ada huruf dan ada angka (Modul 2).
-const POLA_SANDI = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
+  const merged = { ...serverErrors, ...errors };
 
-const NILAI_AWAL = {
-  nik: '',
-  namaLengkap: '',
-  tempatLahir: '',
-  tanggalLahir: '',
-  alamat: '',
-  jenisKelamin: '',
-  namaKontakDarurat: '',
-  noKontakDarurat: '',
-  kataSandi: '',
-  ulangiKataSandi: '',
-  setuju: false,
-};
-
-const PILIHAN_KELAMIN = [
-  { nilai: 'laki-laki', label: 'Laki-laki', ikon: Mars },
-  { nilai: 'perempuan', label: 'Perempuan', ikon: Venus },
-];
-
-// Label dengan tanda bintang merah untuk kolom wajib.
-function wajib(teks) {
-  return (
-    <>
-      {teks} <span className="text-danger">*</span>
-    </>
-  );
-}
-
-// Mengembalikan objek galat. Objek kosong berarti semua kolom valid.
-function validasi(f) {
-  const galat = {};
-  const hariIni = new Date().toISOString().slice(0, 10);
-  const digitKontak = f.noKontakDarurat.replace(/\D/g, '');
-
-  if (f.nik.length !== NIK_PANJANG) galat.nik = 'NIK harus 16 digit angka.';
-  if (!f.namaLengkap.trim()) galat.namaLengkap = 'Nama lengkap wajib diisi.';
-  if (!f.tempatLahir.trim()) galat.tempatLahir = 'Tempat lahir wajib diisi.';
-  if (!f.tanggalLahir) galat.tanggalLahir = 'Tanggal lahir wajib diisi.';
-  else if (f.tanggalLahir > hariIni) galat.tanggalLahir = 'Tanggal lahir tidak boleh melewati hari ini.';
-  if (!f.alamat.trim()) galat.alamat = 'Alamat domisili wajib diisi.';
-  if (!f.jenisKelamin) galat.jenisKelamin = 'Pilih salah satu jenis kelamin.';
-  if (!f.namaKontakDarurat.trim()) galat.namaKontakDarurat = 'Nama kontak darurat wajib diisi.';
-  if (digitKontak.length < 9 || digitKontak.length > 13) {
-    galat.noKontakDarurat = 'Masukkan nomor aktif 9 sampai 13 digit, tanpa +62.';
-  }
-  if (!POLA_SANDI.test(f.kataSandi)) galat.kataSandi = 'Minimal 8 karakter, kombinasi huruf dan angka.';
-  if (!f.ulangiKataSandi || f.ulangiKataSandi !== f.kataSandi) galat.ulangiKataSandi = 'Kata sandi tidak sama.';
-  if (!f.setuju) galat.setuju = 'Centang pernyataan ini untuk melanjutkan.';
-
-  return galat;
-}
-
-// Input hanya menerima ikon, jadi komponen ini dipakai untuk menampilkan awalan +62.
-function Awalan62({ className }) {
-  return <span className={`${className} whitespace-nowrap text-[13px] font-semibold`}>+62</span>;
-}
-
-// Kolom kata sandi dengan tombol tampilkan/sembunyikan.
-function KolomSandi({ label, hint, error, nilai, onUbah, autoComplete }) {
-  const [tampil, setTampil] = useState(false);
-  return (
-    <div className="relative">
-      <Input
-        label={label}
-        hint={hint}
-        error={error}
-        type={tampil ? 'text' : 'password'}
-        value={nilai}
-        onChange={(e) => onUbah(e.target.value)}
-        autoComplete={autoComplete}
-        placeholder="••••••••"
-        className="pr-10"
-      />
-      {/* top-[24px]: sejajar dengan tengah kolom input (di bawah label) */}
-      <button
-        type="button"
-        onClick={() => setTampil(!tampil)}
-        aria-label={tampil ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'}
-        className="absolute right-1 top-[24px] flex size-9 items-center justify-center rounded-lg text-ink-muted hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40"
-      >
-        {tampil ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-      </button>
-    </div>
-  );
-}
-
-// Dua kartu pilihan jenis kelamin (radio).
-function PilihanKelamin({ nilai, onUbah, error }) {
-  return (
-    <fieldset className="flex min-w-0 flex-col gap-1.5">
-      <legend className="mb-1.5 text-xs font-semibold text-ink-soft">{wajib('Jenis Kelamin')}</legend>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {PILIHAN_KELAMIN.map(({ nilai: pilihan, label, ikon: Ikon }) => {
-          const aktif = nilai === pilihan;
-          return (
-            <label
-              key={pilihan}
-              className={cn(
-                'flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-4 text-[13px] font-medium text-ink transition-colors',
-                'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand/40',
-                aktif ? 'border-brand bg-brand-light' : 'border-line bg-white hover:bg-surface-low',
-              )}
-            >
-              <input
-                type="radio"
-                name="jenisKelamin"
-                value={pilihan}
-                checked={aktif}
-                onChange={() => onUbah(pilihan)}
-                className="sr-only"
-              />
-              <span
-                className={cn(
-                  'flex size-8 items-center justify-center rounded-full',
-                  aktif ? 'bg-brand-light-active text-brand' : 'bg-surface-mid text-ink-soft',
-                )}
-              >
-                <Ikon className="size-4" />
-              </span>
-              <span className="flex-1">{label}</span>
-              <span
-                className={cn(
-                  'flex size-5 items-center justify-center rounded-full border-2',
-                  aktif ? 'border-brand' : 'border-ink-muted',
-                )}
-              >
-                {aktif && <span className="size-2.5 rounded-full bg-brand" />}
-              </span>
-            </label>
-          );
-        })}
-      </div>
-      {error && <p className="text-xs text-danger" role="alert">{error}</p>}
-    </fieldset>
-  );
-}
-
-// Halaman tanpa Header/Sidebar (belum login), jadi tidak memakai AppLayout.
-// errors: galat validasi dari BE (Inertia mengirimnya otomatis). Kalau kosong, hanya validasi di sini yang dipakai.
-export default function Registrasi({ errors: galatServer = {} }) {
-  const [form, setForm] = useState(NILAI_AWAL);
-  const [galat, setGalat] = useState({});
-  const tampilGalat = { ...galatServer, ...galat };
-  const hariIni = new Date().toISOString().slice(0, 10);
-
-  function ubah(nama, nilai) {
-    setForm((lama) => ({ ...lama, [nama]: nilai }));
-    // Pesan galat kolom itu hilang begitu pengguna mulai memperbaikinya.
-    setGalat((lama) => ({ ...lama, [nama]: undefined }));
+  function ubah(field, value) {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    setErrors((prev) => ({ ...prev, [field]: undefined }));
   }
 
-  function kirim(e) {
+  function submit(e) {
     e.preventDefault();
-    const galatBaru = validasi(form);
-    setGalat(galatBaru);
-    if (Object.keys(galatBaru).length > 0) {
-      toast.error('Data Tidak Lengkap');
-      return;
-    }
-    router.post('/registrasi', form, { onError: () => toast.error('Periksa kembali data pendaftaran Anda.') });
+    const err = {};
+    if (!/^\d{16}$/.test(form.nik)) err.nik = 'NIK harus tepat 16 digit angka.';
+    if (!form.namaLengkap.trim()) err.namaLengkap = 'Nama lengkap wajib diisi.';
+    if (!form.tempatLahir.trim()) err.tempatLahir = 'Tempat lahir wajib diisi.';
+    if (!form.tanggalLahir) err.tanggalLahir = 'Tanggal lahir wajib diisi.';
+    if (!form.alamat.trim()) err.alamat = 'Alamat domisili wajib diisi.';
+    if (!form.jenisKelamin) err.jenisKelamin = 'Pilih jenis kelamin.';
+    if (!form.namaKontakDarurat.trim()) err.namaKontakDarurat = 'Nama kontak darurat wajib diisi.';
+    if (!form.noKontakDarurat.trim()) err.noKontakDarurat = 'Nomor telepon darurat wajib diisi.';
+    if (!/^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(form.kataSandi)) err.kataSandi = 'Minimal 8 karakter kombinasi huruf dan angka.';
+    if (form.kataSandi !== form.ulangiKataSandi) err.ulangiKataSandi = 'Konfirmasi kata sandi tidak cocok.';
+    if (!form.setuju) err.setuju = 'Centang persetujuan data terlebih dahulu.';
+
+    setErrors(err);
+    if (Object.keys(err).length > 0) return;
+
+    router.post(rute.registrasi, form);
   }
+
+  const inputCls = 'mt-1.5 h-11 w-full rounded-xl border border-line bg-white px-3.5 text-xs text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20';
 
   return (
     <>
-      <Head title="Registrasi Pasien Baru | SIM-RS Rawat Jalan" />
-      <div className="flex min-h-screen flex-col bg-surface">
-        {/* Header */}
-        <header className="flex items-center justify-between bg-white px-6 py-3 shadow-card sm:px-10">
+      <Head title="Registrasi Pasien Baru — RS Sehat Medika" />
+      <div className="min-h-screen flex flex-col bg-surface">
+        <header className="flex h-16 items-center justify-between border-b border-line bg-white px-6">
           <div className="flex items-center gap-3">
-            <span className="flex size-9 items-center justify-center rounded-lg bg-brand text-white">
-              <Asterisk className="size-5" />
-            </span>
-            <span className="text-[15px] font-bold text-ink">RS SEHAT MEDIKA</span>
-            <span className="hidden rounded-full bg-brand-light px-2.5 py-0.5 text-[10px] font-bold text-brand sm:inline">
-              SIM-RS PORTAL
-            </span>
+            <span className="flex size-9 items-center justify-center rounded-xl bg-brand text-white font-extrabold text-lg">+</span>
+            <span className="text-sm font-bold text-ink">RS SEHAT MEDIKA</span>
+            <span className="rounded-md bg-brand-light-active px-2 py-0.5 text-[10px] font-bold text-brand-dark">SIM-RS PORTAL</span>
           </div>
-          <div className="flex items-center gap-3">
-            <Button href={URL_LOGIN} variant="ghost" size="sm" icon={ArrowLeft}>Kembali ke Sistem</Button>
-            <span className="flex size-9 items-center justify-center rounded-full bg-brand text-white">
-              <User className="size-4" />
-            </span>
-          </div>
+          <Link href={rute.login} className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-soft hover:text-ink">
+            <ArrowLeft className="size-4" /> Kembali ke Login
+          </Link>
         </header>
 
-        {/* Kartu formulir */}
-        <main className="flex-1 px-4 py-8">
-          <div className="mx-auto w-full max-w-[720px] rounded-2xl bg-white p-6 shadow-card sm:p-10">
-            <div className="mb-8 flex items-start gap-4">
-              <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-brand-light text-brand">
+        <main className="flex-1 py-8 px-4">
+          <div className="mx-auto max-w-2xl rounded-2xl bg-white p-8 shadow-modal">
+            <div className="flex items-start gap-4">
+              <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-brand-light-active text-brand">
                 <UserPlus className="size-6" />
               </span>
               <div>
-                <h1 className="text-2xl font-bold leading-8 text-ink">Formulir Registrasi Pasien Baru</h1>
-                <p className="mt-1 max-w-md text-[13px] leading-5 text-ink-soft">
+                <h1 className="text-2xl font-extrabold text-ink">Formulir Registrasi Pasien Baru</h1>
+                <p className="mt-1 text-xs text-ink-soft">
                   Pastikan data identitas sesuai dengan KTP / Kartu Keluarga resmi untuk validasi rekam medis rawat jalan.
                 </p>
               </div>
             </div>
 
-            <form onSubmit={kirim} noValidate className="flex flex-col gap-6">
-              {/* NIK + penghitung digit */}
-              <div className="relative">
-                <Input
-                  label={wajib('Nomor Induk Kependudukan (NIK)')}
-                  hint={(
-                    <span className="inline-flex items-center gap-1.5">
-                      <ShieldCheck className="size-3.5 text-brand" />
-                      Data NIK akan otomatis disinkronkan dengan data kependudukan Dukcapil & BPJS Kesehatan
-                    </span>
-                  )}
-                  error={tampilGalat.nik}
-                  inputMode="numeric"
-                  maxLength={NIK_PANJANG}
-                  placeholder="Contoh: 3171012345670001"
+            <form onSubmit={submit} className="mt-6 space-y-5">
+              <div>
+                <div className="flex items-center justify-between text-xs font-semibold">
+                  <label>Nomor Induk Kependudukan (NIK) <span className="text-danger">*</span></label>
+                  <span className="text-[11px] font-bold text-ink-muted">{form.nik.length}/16</span>
+                </div>
+                <input
+                  type="text"
+                  maxLength={16}
                   value={form.nik}
-                  onChange={(e) => ubah('nik', e.target.value.replace(/\D/g, '').slice(0, NIK_PANJANG))}
+                  onChange={(e) => ubah('nik', e.target.value.replace(/\D/g, ''))}
+                  placeholder="Contoh: 3171012345670001"
+                  className={inputCls}
                 />
-                <span className="absolute right-0 top-0 text-xs text-ink-muted">{form.nik.length}/{NIK_PANJANG}</span>
-              </div>
-
-              <Input
-                label={wajib('Nama Lengkap (Sesuai KTP)')}
-                error={tampilGalat.namaLengkap}
-                placeholder="Masukkan nama lengkap tanpa singkatan gelar"
-                autoComplete="name"
-                value={form.namaLengkap}
-                onChange={(e) => ubah('namaLengkap', e.target.value)}
-              />
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Input
-                  label={wajib('Tempat Lahir')}
-                  error={tampilGalat.tempatLahir}
-                  placeholder="Kota/Kabupaten lahir"
-                  value={form.tempatLahir}
-                  onChange={(e) => ubah('tempatLahir', e.target.value)}
-                />
-                <Input
-                  label={wajib('Tanggal Lahir')}
-                  error={tampilGalat.tanggalLahir}
-                  type="date"
-                  max={hariIni}
-                  value={form.tanggalLahir}
-                  onChange={(e) => ubah('tanggalLahir', e.target.value)}
-                />
-              </div>
-
-              <Textarea
-                label={wajib('Alamat Lengkap Domisili')}
-                error={tampilGalat.alamat}
-                placeholder="Tuliskan nama jalan, RT/RW, kelurahan, kecamatan, dan kota domisili saat ini..."
-                value={form.alamat}
-                onChange={(e) => ubah('alamat', e.target.value)}
-              />
-
-              <PilihanKelamin
-                nilai={form.jenisKelamin}
-                onUbah={(nilai) => ubah('jenisKelamin', nilai)}
-                error={tampilGalat.jenisKelamin}
-              />
-
-              {/* Kontak darurat */}
-              <section className="rounded-xl bg-brand-light p-5">
-                <div className="mb-1 flex items-center justify-between gap-3">
-                  <h2 className="flex items-center gap-2 text-base font-semibold text-ink">
-                    <Contact className="size-5 text-brand" />
-                    Kontak Darurat Pasien
-                  </h2>
-                  <span className="rounded-full bg-danger-light px-2.5 py-1 text-[10px] font-bold uppercase text-danger">
-                    * Wajib diisi
-                  </span>
-                </div>
-                <p className="mb-4 text-xs text-ink-soft">
-                  Dihubungi untuk konfirmasi tindakan medis mendesak atau perubahan jadwal dokter.
+                {merged.nik && <p className="mt-1 text-[11px] text-danger">{merged.nik}</p>}
+                <p className="mt-1 flex items-center gap-1 text-[10px] text-brand-dark">
+                  <ShieldCheck className="size-3.5" /> Data NIK otomatis divalidasi untuk mencegah duplikasi rekam medis.
                 </p>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <Input
-                    label={wajib('Nama Kontak Darurat')}
-                    error={tampilGalat.namaKontakDarurat}
-                    placeholder="Nama lengkap kerabat/wali"
-                    value={form.namaKontakDarurat}
-                    onChange={(e) => ubah('namaKontakDarurat', e.target.value)}
-                  />
-                  <Input
-                    label={wajib('Nomor WhatsApp / Telepon Aktif')}
-                    error={tampilGalat.noKontakDarurat}
-                    icon={Awalan62}
-                    className="pl-12"
-                    type="tel"
-                    inputMode="tel"
-                    placeholder="812-3456-7890"
-                    value={form.noKontakDarurat}
-                    onChange={(e) => ubah('noKontakDarurat', e.target.value.replace(/[^\d\s-]/g, ''))}
-                  />
-                </div>
-              </section>
-
-              {/* Kata sandi */}
-              <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
-                <KolomSandi
-                  label={wajib('Kata Sandi Baru')}
-                  hint="Minimal 8 karakter, kombinasi huruf & angka"
-                  error={tampilGalat.kataSandi}
-                  nilai={form.kataSandi}
-                  onUbah={(nilai) => ubah('kataSandi', nilai)}
-                  autoComplete="new-password"
-                />
-                <KolomSandi
-                  label={wajib('Ulangi Kata Sandi')}
-                  error={tampilGalat.ulangiKataSandi}
-                  nilai={form.ulangiKataSandi}
-                  onUbah={(nilai) => ubah('ulangiKataSandi', nilai)}
-                  autoComplete="new-password"
-                />
               </div>
 
-              {/* Pernyataan kebenaran data */}
-              <div className="flex flex-col gap-1.5">
-                <label className="flex cursor-pointer items-start gap-3 text-[13px] leading-6 text-ink-soft">
+              <div>
+                <label className="text-xs font-semibold">Nama Lengkap (Sesuai KTP) <span className="text-danger">*</span></label>
+                <input
+                  type="text"
+                  value={form.namaLengkap}
+                  onChange={(e) => ubah('namaLengkap', e.target.value)}
+                  placeholder="Masukkan nama lengkap tanpa singkatan gelar"
+                  className={inputCls}
+                />
+                {merged.namaLengkap && <p className="mt-1 text-[11px] text-danger">{merged.namaLengkap}</p>}
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="text-xs font-semibold">Tempat Lahir <span className="text-danger">*</span></label>
                   <input
-                    type="checkbox"
-                    checked={form.setuju}
-                    onChange={(e) => ubah('setuju', e.target.checked)}
-                    aria-invalid={!!tampilGalat.setuju}
-                    className="mt-1 size-4 shrink-0 accent-brand"
+                    type="text"
+                    value={form.tempatLahir}
+                    onChange={(e) => ubah('tempatLahir', e.target.value)}
+                    placeholder="Kota/Kabupaten lahir"
+                    className={inputCls}
                   />
-                  <span>
-                    Saya menyatakan bahwa data yang saya isikan adalah benar dan dapat dipertanggungjawabkan untuk
-                    kebutuhan administrasi pelayanan rekam medis <strong className="text-ink">RS Sehat Medika</strong>.
-                  </span>
-                </label>
-                {tampilGalat.setuju && <p className="text-xs text-danger" role="alert">{tampilGalat.setuju}</p>}
+                  {merged.tempatLahir && <p className="mt-1 text-[11px] text-danger">{merged.tempatLahir}</p>}
+                </div>
+                <div>
+                  <label className="text-xs font-semibold">Tanggal Lahir <span className="text-danger">*</span></label>
+                  <input
+                    type="date"
+                    max={new Date().toISOString().slice(0, 10)}
+                    value={form.tanggalLahir}
+                    onChange={(e) => ubah('tanggalLahir', e.target.value)}
+                    className={inputCls}
+                  />
+                  {merged.tanggalLahir && <p className="mt-1 text-[11px] text-danger">{merged.tanggalLahir}</p>}
+                </div>
               </div>
 
-              <Button type="submit" size="lg" className="w-full uppercase tracking-wide">
-                Daftar akun pasien
-                <ArrowRight className="size-4" />
-              </Button>
+              <div>
+                <label className="text-xs font-semibold">Alamat Lengkap Domisili <span className="text-danger">*</span></label>
+                <textarea
+                  rows={3}
+                  value={form.alamat}
+                  onChange={(e) => ubah('alamat', e.target.value)}
+                  placeholder="Tuliskan nama jalan, RT/RW, kelurahan, kecamatan, dan kota domisili saat ini..."
+                  className="mt-1.5 w-full rounded-xl border border-line bg-white p-3.5 text-xs text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+                />
+                {merged.alamat && <p className="mt-1 text-[11px] text-danger">{merged.alamat}</p>}
+              </div>
 
-              <p className="flex flex-wrap items-center justify-center gap-1 text-[13px] text-ink-soft">
-                Sudah memiliki akun rekam medis?
-                <Button href={URL_LOGIN} variant="ghost" size="sm" className="font-bold uppercase text-brand">
-                  Masuk di sini
-                  <ArrowRight className="size-3.5" />
-                </Button>
-              </p>
+              <div>
+                <label className="text-xs font-semibold">Jenis Kelamin <span className="text-danger">*</span></label>
+                <div className="mt-1.5 grid gap-3 sm:grid-cols-2">
+                  {[
+                    { value: 'laki-laki', label: 'Laki-laki', icon: Mars },
+                    { value: 'perempuan', label: 'Perempuan', icon: Venus },
+                  ].map((opt) => {
+                    const Icon = opt.icon;
+                    const active = form.jenisKelamin === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => ubah('jenisKelamin', opt.value)}
+                        className={`flex items-center justify-between rounded-xl border px-4 py-3 text-xs font-semibold transition cursor-pointer ${
+                          active ? 'border-brand bg-brand-light-active text-brand-dark' : 'border-line bg-white text-ink hover:bg-surface-low'
+                        }`}
+                      >
+                        <span className="flex items-center gap-2.5">
+                          <span className={`flex size-7 items-center justify-center rounded-full ${active ? 'bg-brand text-white' : 'bg-surface-mid text-ink-soft'}`}>
+                            <Icon className="size-4" />
+                          </span>
+                          {opt.label}
+                        </span>
+                        <span className={`size-4 rounded-full border-2 ${active ? 'border-brand bg-brand' : 'border-ink-muted'}`} />
+                      </button>
+                    );
+                  })}
+                </div>
+                {merged.jenisKelamin && <p className="mt-1 text-[11px] text-danger">{merged.jenisKelamin}</p>}
+              </div>
+
+              {/* Kotak Kontak Darurat Hijau seperti _p1 */}
+              <div className="rounded-2xl bg-brand-light-active p-5">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-brand-dark">Kontak Darurat Pasien</p>
+                  <span className="rounded-full bg-danger-light px-2.5 py-0.5 text-[10px] font-bold text-danger">* WAJIB DIISI</span>
+                </div>
+                <p className="mt-1 text-[11px] text-brand-dark/80">Dihubungi untuk konfirmasi tindakan medis mendesak atau perubahan jadwal dokter.</p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="text-[11px] font-semibold text-brand-dark">Nama Kontak Darurat <span className="text-danger">*</span></label>
+                    <input
+                      type="text"
+                      value={form.namaKontakDarurat}
+                      onChange={(e) => ubah('namaKontakDarurat', e.target.value)}
+                      placeholder="Nama lengkap kerabat/wali"
+                      className="mt-1 h-10 w-full rounded-xl bg-white px-3 text-xs text-ink outline-none"
+                    />
+                    {merged.namaKontakDarurat && <p className="mt-1 text-[11px] text-danger">{merged.namaKontakDarurat}</p>}
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold text-brand-dark">Nomor WhatsApp / Telepon Aktif <span className="text-danger">*</span></label>
+                    <div className="mt-1 flex h-10 overflow-hidden rounded-xl bg-white">
+                      <span className="flex items-center bg-surface-mid px-3 text-xs font-bold text-ink-soft">+62</span>
+                      <input
+                        type="text"
+                        value={form.noKontakDarurat}
+                        onChange={(e) => ubah('noKontakDarurat', e.target.value)}
+                        placeholder="812-3456-7890"
+                        className="w-full px-3 text-xs text-ink outline-none"
+                      />
+                    </div>
+                    {merged.noKontakDarurat && <p className="mt-1 text-[11px] text-danger">{merged.noKontakDarurat}</p>}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="text-xs font-semibold">Kata Sandi Baru <span className="text-danger">*</span></label>
+                  <div className="relative">
+                    <input
+                      type={lihat1 ? 'text' : 'password'}
+                      value={form.kataSandi}
+                      onChange={(e) => ubah('kataSandi', e.target.value)}
+                      placeholder="Minimal 8 karakter"
+                      className={`${inputCls} pr-10`}
+                    />
+                    <button type="button" onClick={() => setLihat1((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted">
+                      {lihat1 ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    </button>
+                  </div>
+                  {merged.kataSandi && <p className="mt-1 text-[11px] text-danger">{merged.kataSandi}</p>}
+                </div>
+                <div>
+                  <label className="text-xs font-semibold">Ulangi Kata Sandi <span className="text-danger">*</span></label>
+                  <div className="relative">
+                    <input
+                      type={lihat2 ? 'text' : 'password'}
+                      value={form.ulangiKataSandi}
+                      onChange={(e) => ubah('ulangiKataSandi', e.target.value)}
+                      placeholder="Ketik ulang kata sandi"
+                      className={`${inputCls} pr-10`}
+                    />
+                    <button type="button" onClick={() => setLihat2((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted">
+                      {lihat2 ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    </button>
+                  </div>
+                  {merged.ulangiKataSandi && <p className="mt-1 text-[11px] text-danger">{merged.ulangiKataSandi}</p>}
+                </div>
+              </div>
+
+              <label className="flex items-start gap-2.5 text-xs text-ink-soft cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.setuju}
+                  onChange={(e) => ubah('setuju', e.target.checked)}
+                  className="mt-0.5 size-4 rounded accent-brand"
+                />
+                <span>
+                  Saya menyatakan bahwa data yang saya isikan adalah benar dan dapat dipertanggungjawabkan untuk kebutuhan administrasi pelayanan rekam medis <b>RS Sehat Medika</b>.
+                </span>
+              </label>
+              {merged.setuju && <p className="text-[11px] text-danger">{merged.setuju}</p>}
+
+              <Button type="submit" icon={ArrowRight} className="w-full h-12 text-xs uppercase tracking-wider">
+                Daftar Akun Pasien
+              </Button>
             </form>
+
+            <p className="mt-6 text-center text-xs text-ink-soft">
+              Sudah memiliki akun rekam medis?{' '}
+              <Link href={rute.login} className="font-bold text-brand hover:underline">
+                MASUK DI SINI &rarr;
+              </Link>
+            </p>
           </div>
         </main>
-
-        {/* Footer */}
-        <footer className="flex flex-col items-center justify-between gap-2 px-6 pb-8 text-[11px] tracking-wide text-ink-muted sm:flex-row sm:px-10">
-          <span className="inline-flex items-center gap-2">
-            <Lock className="size-3.5" />
-            SECURE CONNECTION // ENCRYPTED
-          </span>
-          <span>SISTEM INFORMASI OUTPATIENT CARE - RS SEHAT MEDIKA</span>
-        </footer>
       </div>
     </>
   );
