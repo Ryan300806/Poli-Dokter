@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { router } from '@inertiajs/react';
 import {
   ArrowRight, CalendarClock, CheckCircle2, ClipboardCheck, FileText, Info,
-  ShieldAlert, XCircle,
+  Package, ShieldAlert, XCircle,
 } from 'lucide-react';
 import AppLayout from '../../Layouts/AppLayout';
 import Badge from '../../Components/ui/Badge';
 import Button from '../../Components/ui/Button';
 import Modal from '../../Components/ui/Modal';
+import StokObatModal from '../../Components/Apoteker/StokObatModal';
 import { toast } from '../../Components/ui/Toast';
 import { rute } from '../../lib/rute';
 import { evaluasiStokObat } from '../../lib/evaluasiStokObat';
@@ -38,15 +39,15 @@ function toneStatus(status) {
 function DataField({ label, children }) {
   return (
     <div className="min-w-0 rounded-lg bg-white p-3">
-      <small className="block text-[10px] font-medium text-ink-muted">{label}</small>
-      <b className="mt-1 block break-words text-[13px] font-semibold text-ink">{children || 'Tidak tersedia'}</b>
+      <small className="block text-[9px] font-medium text-ink-muted">{label}</small>
+      <b className="mt-1 block break-words text-[12px] font-semibold text-ink">{children || 'Tidak tersedia'}</b>
     </div>
   );
 }
 
 function BagianNomor({ children }) {
   return (
-    <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-brand-light-active text-xs font-bold text-brand-dark">
+    <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-brand-light-active text-[10px] font-bold text-brand-dark">
       {children}
     </span>
   );
@@ -57,6 +58,7 @@ export default function RincianEResep({ eresepId, resepServer }) {
   const [identitasSesuai, setIdentitasSesuai] = useState(false);
   const [konselingDilakukan, setKonselingDilakukan] = useState(false);
   const [modalTolak, setModalTolak] = useState(false);
+  const [modalStokBuka, setModalStokBuka] = useState(false);
   const [alasan, setAlasan] = useState('');
   const [errorAlasan, setErrorAlasan] = useState('');
   const [processing, setProcessing] = useState(false);
@@ -142,11 +144,11 @@ export default function RincianEResep({ eresepId, resepServer }) {
       apotekerNotifikasi
       contentClassName="pl-[21px] pr-[90px] max-[900px]:pl-5 max-[900px]:pr-5"
     >
-      <div className="mx-auto w-full max-w-[897px] space-y-5">
+      <div className="mx-auto w-full max-w-[897px] space-y-4">
         <header className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <div className="flex flex-wrap items-center gap-2 text-[11px]">
-              <Badge className="!px-3 !py-1 !text-[10px] !leading-4" tone="success">
+            <div className="flex flex-wrap items-center gap-2 text-[10px]">
+              <Badge className="!px-[10px] !py-[3px] !text-[9px] !leading-3" tone="success">
                 Farmasi Rawat Jalan
               </Badge>
               <span className="text-ink-muted">•</span>
@@ -155,31 +157,31 @@ export default function RincianEResep({ eresepId, resepServer }) {
             <h1 className="mt-1 text-[24px] font-bold leading-[30px] tracking-[-0.35px] text-ink sm:text-[27px]">
               Pengecekan &amp; Penyerahan Obat Pasien
             </h1>
-            <p className="mt-1 max-w-[660px] text-xs leading-5 text-ink-muted">
+            <p className="mt-1 max-w-[660px] text-[10px] leading-4 text-ink-muted">
               Verifikasi identitas pasien dan pemeriksaan kesesuaian obat sebelum diserahkan di loket farmasi.
             </p>
           </div>
         </header>
 
         <section className="overflow-hidden rounded-xl border-l-[5px] border-brand bg-white shadow-card" aria-label="Informasi E-Resep">
-          <div className="flex flex-wrap items-center justify-between gap-3 bg-surface-low px-5 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-surface-low px-4 py-3">
             <div className="flex items-center gap-3">
               <span className="flex size-8 items-center justify-center rounded-md bg-brand-light-active text-brand-dark">
-                <FileText className="size-5" />
+                <FileText className="size-4" />
               </span>
               <div>
-                <small className="block text-[10px] font-bold uppercase tracking-[0.35px] text-ink-muted">
+                <small className="block text-[8px] font-bold uppercase tracking-[0.35px] text-ink-muted">
                   Nomor E-Resep Digital
                 </small>
-                <b className="mt-0.5 block text-sm font-bold text-ink">{idResep}</b>
+                <b className="mt-0.5 block text-[12px] font-bold text-ink">{idResep}</b>
               </div>
             </div>
-            <Badge className="!px-3 !py-1.5 !text-[10px]" tone={toneStatus(statusResep)} dot>
+            <Badge className="!px-2.5 !py-1 !text-[9px]" tone={toneStatus(statusResep)} dot>
               {statusResep || 'Status tidak tersedia'}
             </Badge>
           </div>
 
-          <div className="grid gap-3 px-5 py-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-2.5 px-4 py-3 sm:grid-cols-2 lg:grid-cols-4">
             <DataField label="Nama Pasien">{resep.pasien}</DataField>
             <DataField label="ID Pasien">{resep.pasienId ?? resep.id_pasien}</DataField>
             <DataField label="Dokter Penulis">{resep.dokter}</DataField>
@@ -192,18 +194,18 @@ export default function RincianEResep({ eresepId, resepServer }) {
           </div>
         </section>
 
-        <section className="rounded-xl bg-white p-5 shadow-card" aria-labelledby="identitas-heading">
+        <section className="rounded-xl bg-white p-4 shadow-card sm:p-[18px]" aria-labelledby="identitas-heading">
           <div className="flex flex-wrap items-center justify-between gap-2.5">
             <div className="flex items-center gap-2">
               <BagianNomor>1</BagianNomor>
-              <h2 id="identitas-heading" className="text-base font-bold text-ink">
+              <h2 id="identitas-heading" className="text-[13px] font-bold text-ink">
                 Verifikasi Identitas Pengambil Obat
               </h2>
             </div>
-            <Badge className="!px-2.5 !py-1 !text-[10px]" tone="success">Wajib diperiksa</Badge>
+            <Badge className="!px-2 !py-1 !text-[8px]" tone="success">Wajib diperiksa</Badge>
           </div>
 
-          <div className="mt-4 grid gap-3 rounded-xl bg-surface-mid p-3 sm:grid-cols-3">
+          <div className="mt-3 grid gap-2 rounded-lg bg-surface-mid p-2 sm:grid-cols-3">
             <DataField label="Nama Lengkap Pasien">{resep.pasien}</DataField>
             <DataField label="ID Pasien">{resep.pasienId ?? resep.id_pasien}</DataField>
             <DataField label="Tanggal Lahir / Usia">
@@ -213,117 +215,103 @@ export default function RincianEResep({ eresepId, resepServer }) {
             </DataField>
           </div>
 
-          <label className="mt-4 flex cursor-pointer items-start gap-2 text-xs leading-5 text-ink-soft">
+          <label className="mt-3 flex cursor-pointer items-start gap-2 text-[10px] leading-4 text-ink-soft">
             <input
               type="checkbox"
               checked={identitasSesuai}
               onChange={(event) => setIdentitasSesuai(event.target.checked)}
-              className="mt-1 size-4 shrink-0 accent-brand"
+              className="mt-0.5 size-3.5 shrink-0 accent-brand"
             />
             <span>Saya telah mencocokkan nama dan ID pasien dengan identitas pengambil obat.</span>
           </label>
-          <p className="mt-1.5 pl-6 text-[11px] leading-5 text-ink-muted">
+          <p className="mt-1.5 pl-[22px] text-[9px] leading-4 text-ink-muted">
             Verifikasi ini hanya berlaku di sesi ini dan belum tersimpan sebagai audit di database.
           </p>
         </section>
 
-        <section className="rounded-xl bg-white p-5 shadow-card" aria-labelledby="obat-heading">
+        <section className="rounded-xl bg-white p-4 shadow-card sm:p-[18px]" aria-labelledby="obat-heading">
           <div className="flex flex-wrap items-center justify-between gap-2.5">
             <div className="flex items-center gap-2">
               <BagianNomor>2</BagianNomor>
               <div>
-                <h2 id="obat-heading" className="text-base font-bold text-ink">Pemeriksaan Kesesuaian Obat</h2>
-                <p className="text-[11px] leading-5 text-ink-muted">Telaah obat, dosis, jumlah, dan aturan pakai.</p>
+                <h2 id="obat-heading" className="text-[13px] font-bold text-ink">Pemeriksaan Kesesuaian Obat</h2>
+                <p className="text-[9px] leading-4 text-ink-muted">Telaah obat, dosis, jumlah, dan aturan pakai.</p>
               </div>
             </div>
-            <Badge className="!px-2.5 !py-1 !text-[10px]" tone="neutral">{jumlahItem} item obat</Badge>
+            <Badge className="!px-2 !py-1 !text-[8px]" tone="neutral">{jumlahItem} item obat</Badge>
           </div>
 
-          <div className="mt-4 space-y-3">
+          <div className="mt-3 space-y-2">
             {daftarObat.map((item, index) => {
               const jumlah = item.jumlah_obat ?? item.satuan;
               const statusStokItem = evaluasiStok[index];
 
               return (
-                <article
-                  key={`${item.id_obat ?? item.nama}-${index}`}
-                  className="rounded-xl border border-line bg-white p-4 shadow-sm sm:p-5"
-                >
-                  <div className="flex items-start gap-3">
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-light-active text-brand-dark">
-                      <ClipboardCheck className="size-5" />
+                <article key={`${item.id_obat ?? item.nama}-${index}`} className="rounded-lg bg-surface-mid p-3">
+                  <div className="flex flex-wrap items-start gap-2.5">
+                    <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-brand-light-active text-brand-dark">
+                      <ClipboardCheck className="size-4" />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <h3 className="text-base font-bold leading-6 text-ink">
-                        {item.nama || 'Nama obat tidak tersedia'}
-                      </h3>
-                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                        <div className="rounded-lg bg-surface-low p-3">
-                          <small className="block text-[10px] font-medium text-ink-muted">Dosis</small>
-                          <p className="mt-1 text-sm font-semibold leading-5 text-ink">
-                            {item.dosis || 'Dosis tidak tersedia'}
-                          </p>
-                        </div>
-                        <div className="rounded-lg bg-surface-low p-3">
-                          <small className="block text-[10px] font-medium text-ink-muted">Jumlah kebutuhan resep</small>
-                          <p className="mt-1 text-sm font-semibold leading-5 text-ink">
-                            {jumlah !== null && jumlah !== undefined ? `${jumlah} unit` : 'Jumlah tidak tersedia'}
-                          </p>
-                        </div>
-                        <div className="rounded-lg bg-surface-low p-3 sm:col-span-2">
-                          <small className="block text-[10px] font-medium text-ink-muted">Aturan pakai</small>
-                          <p className="mt-1 text-sm leading-5 text-ink">
-                            {item.aturan || 'Tidak tersedia'}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-surface-mid p-3">
-                        <div>
-                          <small className="block text-[10px] font-medium text-ink-muted">
-                            Stok persediaan dari backend
-                          </small>
-                          <p className="mt-1 text-sm font-semibold text-ink">
-                            {statusStokItem.stokTercatat === null
-                              ? 'Jumlah stok tidak diketahui'
-                              : `${statusStokItem.stokTercatat.toLocaleString('id-ID')} unit`}
-                          </p>
-                        </div>
-                        <div className="flex flex-col items-start gap-1.5 sm:items-end">
-                          <Badge className="!px-3 !py-1.5 !text-[10px]" tone={statusStokItem.tone} dot>
-                            {statusStokItem.label}
-                          </Badge>
-                          <span className="text-[11px] text-ink-muted">{statusStokItem.ringkasan}</span>
-                        </div>
+                      <h3 className="text-[11px] font-bold leading-4 text-ink">{item.nama || 'Nama obat tidak tersedia'}</h3>
+                      <p className="text-[9px] leading-4 text-ink-muted">
+                        {item.dosis || 'Dosis tidak tersedia'}
+                        {' • '}
+                        {jumlah !== null && jumlah !== undefined ? `${jumlah} unit` : 'Jumlah tidak tersedia'}
+                      </p>
+                      <p className="mt-1.5 flex items-start gap-1.5 text-[9px] leading-4 text-ink-soft">
+                        <CheckCircle2 className="mt-0.5 size-3 shrink-0 text-brand" />
+                        <span><b className="font-semibold text-ink">Aturan Pakai:</b> {item.aturan || 'Tidak tersedia'}</span>
+                      </p>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                        <span className="text-[8px] text-ink-muted">
+                          Stok tercatat: {statusStokItem.stokTercatat === null
+                            ? 'Belum tersedia'
+                            : `${statusStokItem.stokTercatat.toLocaleString('id-ID')} unit`}
+                        </span>
+                        <Badge className="!px-2 !py-[2px] !text-[8px] !leading-3" tone={statusStokItem.tone} dot>
+                          {statusStokItem.label}
+                        </Badge>
+                        <span className="text-[8px] text-ink-muted">{statusStokItem.ringkasan}</span>
                       </div>
                     </div>
+                    <Button
+                      variant="primary"
+                      icon={Package}
+                      size="sm"
+                      className="h-[30px] shrink-0 px-3 text-[9px]"
+                      onClick={() => setModalStokBuka(true)}
+                    >
+                      Stok Obat
+                    </Button>
                   </div>
                 </article>
               );
             })}
             {jumlahItem === 0 && (
-              <p className="rounded-lg bg-surface-low p-5 text-center text-sm text-ink-muted">
+              <p className="rounded-lg bg-surface-low p-4 text-center text-xs text-ink-muted">
                 Data obat belum tersedia pada E-Resep ini.
               </p>
             )}
           </div>
 
-          <label className="mt-4 flex cursor-pointer items-start gap-2 rounded-xl bg-brand-light-active p-4 text-xs leading-5 text-brand-dark">
+          <label className="mt-2 flex cursor-pointer items-start gap-2 rounded-lg bg-brand-light-active p-2.5 text-[9px] leading-4 text-brand-dark">
             <input
               type="checkbox"
               checked={konselingDilakukan}
               onChange={(event) => setKonselingDilakukan(event.target.checked)}
-              className="mt-1 size-4 shrink-0 accent-brand"
+              className="mt-0.5 size-3.5 shrink-0 accent-brand"
             />
             <span className="flex items-start gap-1.5">
-              <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-brand-dark" />
+              <CheckCircle2 className="mt-0.5 size-3 shrink-0 text-brand-dark" />
               <span>
                 Instruksi cara minum, efek samping, dan aturan penyimpanan obat telah dijelaskan kepada pasien atau perwakilan keluarga.
               </span>
             </span>
           </label>
-          <p className="mt-2 flex items-start gap-2 text-[11px] leading-5 text-ink-muted">
-            <Info className="mt-0.5 size-4 shrink-0" />
-            Konseling ini hanya dikonfirmasi secara lokal dan belum tersimpan di database. Data stok ditampilkan baca-saja dari backend.
+          <p className="mt-1 flex items-start gap-1.5 text-[8px] leading-4 text-ink-muted">
+            <Info className="mt-0.5 size-3 shrink-0" />
+            Konseling ini hanya dikonfirmasi secara lokal dan belum tersimpan di database. Stok hanya informasi baca; alokasi tidak tersedia.
           </p>
         </section>
 
@@ -341,20 +329,20 @@ export default function RincianEResep({ eresepId, resepServer }) {
           <Badge tone="success" check>Obat sudah diberikan</Badge>
         )}
 
-        <section className="rounded-xl bg-white p-4 shadow-card sm:p-5">
+        <section className="rounded-xl bg-white p-3 shadow-card">
           {!identitasSesuai || !konselingDilakukan ? (
-            <p className="mb-3 text-xs text-ink-muted">
+            <p className="mb-2 text-[9px] text-ink-muted">
               Centang verifikasi identitas dan konseling untuk mengaktifkan persetujuan.
             </p>
           ) : null}
           {!sudahSiap && !stokCukupUntukResep && !sudahDitolak && !sudahSelesai && (
-            <p className="mb-3 rounded-lg bg-warning-light p-3 text-xs leading-5 text-warning" role="status">
+            <p className="mb-2 rounded-lg bg-warning-light p-2.5 text-[9px] text-warning" role="status">
               Persetujuan ditahan sampai stok tercatat mencukupi seluruh jumlah resep. Ini pengamanan frontend; backend belum memvalidasi kecukupan maupun mengalokasikan stok.
             </p>
           )}
           <Button
             icon={ArrowRight}
-            className="h-11 w-full justify-center text-sm"
+            className="h-[36px] w-full justify-center text-[10px]"
             loading={processing}
             onClick={setujuiResep}
             disabled={processing || statusTidakDapatDisetujui || (!sudahSiap && !dapatLanjut)}
@@ -367,7 +355,7 @@ export default function RincianEResep({ eresepId, resepServer }) {
               variant="ghost"
               icon={XCircle}
               size="sm"
-              className="px-3 text-xs text-danger hover:bg-danger-light"
+              className="px-2 text-[9px] text-danger hover:bg-danger-light"
               onClick={() => {
                 setErrorAlasan('');
                 setModalTolak(true);
@@ -377,13 +365,20 @@ export default function RincianEResep({ eresepId, resepServer }) {
               Tolak Resep
             </Button>
             {!sudahDitolak && !sudahSelesai && !sudahSiap && (
-              <p className="text-right text-[10px] text-ink-muted">
-                Checklist identitas dan konseling tidak tersimpan sebagai audit.
+              <p className="text-right text-[8px] text-ink-muted">
+                Status berubah ke “Siap Diserahkan”; alokasi stok dan konseling tidak disimpan.
               </p>
             )}
           </div>
         </section>
       </div>
+
+      <StokObatModal
+        key={idResep}
+        open={modalStokBuka}
+        onClose={() => setModalStokBuka(false)}
+        items={resep.items}
+      />
 
       <Modal
         open={modalTolak}

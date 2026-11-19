@@ -26,9 +26,9 @@ function formatTanggal(nilai) {
 
 function DataField({ label, value }) {
   return (
-    <div className="min-w-0 rounded-lg bg-surface-low p-3.5">
-      <small className="block text-[11px] font-medium text-ink-muted">{label}</small>
-      <b className="mt-1.5 block break-words text-sm font-semibold leading-5 text-ink">{value || 'Tidak tersedia'}</b>
+    <div className="min-w-0 rounded-lg bg-surface-low p-3">
+      <small className="block text-[9px] text-ink-muted">{label}</small>
+      <b className="mt-1 block break-words text-[11px] font-semibold text-ink">{value || 'Tidak tersedia'}</b>
     </div>
   );
 }
@@ -42,8 +42,8 @@ function statusObat(item) {
     || !Number.isSafeInteger(jumlah) || jumlah < 1) {
     return { label: 'Status stok tidak diketahui', tone: 'neutral' };
   }
-  if (stok === 0) return { label: 'Tidak Tersedia', tone: 'danger' };
-  if (stok < jumlah) return { label: 'Tidak Mencukupi', tone: 'warning' };
+  if (stok === 0) return { label: 'Stok tidak mencukupi', tone: 'danger' };
+  if (stok < jumlah) return { label: 'Stok terbatas', tone: 'warning' };
   return { label: 'Tersedia', tone: 'success' };
 }
 
@@ -111,18 +111,15 @@ export default function PengirimanObat({ eresepId, eresepServer }) {
 
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-brand">Farmasi Rawat Jalan</p>
-            <h1 className="mt-1 text-[28px] font-bold leading-9 tracking-[-0.35px] text-ink sm:text-[30px]">
-              Ringkasan Penyerahan Obat
-            </h1>
-            <p className="mt-1 max-w-[640px] text-sm leading-5 text-ink-muted">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-brand">Farmasi Rawat Jalan</p>
+            <h1 className="mt-1 text-[28px] font-bold leading-9 text-ink">Ringkasan Penyerahan Obat</h1>
+            <p className="mt-1 text-[12px] text-ink-muted">
               Tinjau data E-Resep dan obat sebelum mencatat penyerahan kepada pasien.
             </p>
           </div>
           <Button
             variant="outline"
             icon={Printer}
-            size="lg"
             className="print:hidden"
             onClick={() => window.print()}
           >
@@ -137,8 +134,8 @@ export default function PengirimanObat({ eresepId, eresepServer }) {
                 <FileText className="size-5" />
               </span>
               <div>
-                <small className="block text-[10px] font-semibold uppercase tracking-wide text-ink-muted">Nomor E-Resep</small>
-                <b className="text-lg font-bold text-ink">{nomorResep || 'Tidak tersedia'}</b>
+                <small className="block text-[9px] font-semibold uppercase tracking-wide text-ink-muted">Nomor E-Resep</small>
+                <b className="text-base font-bold text-ink">{nomorResep || 'Tidak tersedia'}</b>
               </div>
             </div>
             <Badge tone={sudahDiserahkan ? 'success' : 'info'} dot>
@@ -161,14 +158,14 @@ export default function PengirimanObat({ eresepId, eresepServer }) {
                   <UserRound className="size-5 text-brand" />
                   Identitas Pengambil Obat
                 </h2>
-                <Badge tone="warning" className="!text-[11px]">Verifikasi saat penyerahan</Badge>
+                <Badge tone="warning">Verifikasi saat penyerahan</Badge>
               </div>
               <div className="mt-4 grid gap-3 sm:grid-cols-3">
                 <DataField label="Nama Pasien" value={resep.pasien ?? resep.nama_pasien} />
                 <DataField label="NIK" value={resep.nik} />
                 <DataField label="Tanggal Lahir" value={resep.tanggal_lahir} />
               </div>
-              <label className="mt-4 flex cursor-pointer items-start gap-2 text-sm leading-5 text-ink-soft">
+              <label className="mt-4 flex cursor-pointer items-start gap-2 text-[11px] text-ink-soft">
                 <input
                   type="checkbox"
                   checked={identitasSesuai}
@@ -177,8 +174,8 @@ export default function PengirimanObat({ eresepId, eresepServer }) {
                 />
                 <span>Saya telah mencocokkan identitas pengambil obat dengan data pasien di atas.</span>
               </label>
-              <p className="mt-2 flex items-start gap-2 text-xs leading-5 text-ink-muted">
-                <Info className="mt-0.5 size-4 shrink-0" />
+              <p className="mt-2 flex items-start gap-1.5 text-[10px] text-ink-muted">
+                <Info className="mt-0.5 size-3 shrink-0" />
                 Verifikasi ini hanya berlaku di sesi ini; backend belum mencatat identitas pengambil.
               </p>
             </section>
@@ -190,7 +187,7 @@ export default function PengirimanObat({ eresepId, eresepServer }) {
                     <ClipboardList className="size-5 text-brand" />
                     Ringkasan Obat
                   </h2>
-                  <p className="mt-1 text-xs leading-5 text-ink-muted">Informasi sesuai item E-Resep dari database.</p>
+                  <p className="mt-1 text-[11px] text-ink-muted">Informasi sesuai item E-Resep dari database.</p>
                 </div>
                 <Badge tone="neutral">{items.length} item</Badge>
               </div>
@@ -202,18 +199,18 @@ export default function PengirimanObat({ eresepId, eresepServer }) {
                   return (
                     <article
                       key={`${item.id_obat ?? item.nama}-${index}`}
-                      className="rounded-xl border border-line bg-white p-4 shadow-sm sm:p-5"
+                      className="rounded-xl border border-line bg-surface-low p-4"
                     >
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <h3 className="break-words text-base font-bold leading-6 text-ink">
+                          <h3 className="break-words text-[13px] font-bold text-ink">
                             {item.nama || item.nama_obat || 'Nama obat tidak tersedia'}
                           </h3>
-                          <p className="mt-1 text-xs leading-5 text-ink-muted">{item.dosis || 'Dosis tidak tersedia'}</p>
+                          <p className="mt-1 text-[10px] text-ink-muted">{item.dosis || 'Dosis tidak tersedia'}</p>
                         </div>
-                        <Badge tone={status.tone} dot className="!text-[11px]">{status.label}</Badge>
+                        <Badge tone={status.tone} dot>{status.label}</Badge>
                       </div>
-                      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                      <div className="mt-3 grid gap-3 sm:grid-cols-3">
                         <DataField label="Jumlah Resep" value={jumlah === null || jumlah === undefined ? null : `${jumlah} unit`} />
                         <DataField label="Aturan Pakai" value={item.aturan ?? item.aturan_pakai} />
                         <DataField
@@ -227,13 +224,13 @@ export default function PengirimanObat({ eresepId, eresepServer }) {
                   );
                 })}
                 {items.length === 0 && (
-                  <p className="rounded-lg bg-surface-low p-5 text-center text-sm text-ink-muted">
+                  <p className="rounded-lg bg-surface-low p-5 text-center text-xs text-ink-muted">
                     Data item obat tidak tersedia pada E-Resep ini.
                   </p>
                 )}
               </div>
-              <p className="mt-4 flex items-start gap-2 rounded-lg bg-info-light p-4 text-xs leading-5 text-ink-soft">
-                <Info className="mt-0.5 size-4 shrink-0 text-info" />
+              <p className="mt-4 flex items-start gap-2 rounded-lg bg-info-light p-3 text-[10px] text-ink-soft">
+                <Info className="mt-0.5 size-3.5 shrink-0 text-info" />
                 Status stok hanya informasi agregat dari data backend. Batch, alokasi, dan pengurangan stok tidak tersedia pada alur ini.
               </p>
             </section>
@@ -245,34 +242,33 @@ export default function PengirimanObat({ eresepId, eresepServer }) {
                 <ShieldCheck className="size-5 text-brand" />
                 Ringkasan Penyerahan
               </h2>
-              <p className="mt-1 text-xs leading-5 text-ink-muted">Rincian yang dapat diverifikasi dari data saat ini.</p>
-              <dl className="mt-4 divide-y divide-line text-xs">
-                <div className="flex justify-between gap-3 py-3.5">
+              <p className="mt-1 text-[11px] text-ink-muted">Rincian yang dapat diverifikasi dari data saat ini.</p>
+              <dl className="mt-4 divide-y divide-line text-[11px]">
+                <div className="flex justify-between gap-3 py-3">
                   <dt className="text-ink-muted">Status penyiapan</dt>
                   <dd className="text-right font-semibold text-ink">{resep.status || 'Tidak tersedia'}</dd>
                 </div>
-                <div className="flex justify-between gap-3 py-3.5">
+                <div className="flex justify-between gap-3 py-3">
                   <dt className="text-ink-muted">Jumlah item resep</dt>
                   <dd className="font-semibold text-ink">{items.length}</dd>
                 </div>
-                <div className="flex justify-between gap-3 py-3.5">
+                <div className="flex justify-between gap-3 py-3">
                   <dt className="text-ink-muted">Apoteker / petugas</dt>
                   <dd className="text-right font-semibold text-ink">Tidak tersedia pada backend</dd>
                 </div>
-                <div className="flex justify-between gap-3 py-3.5">
+                <div className="flex justify-between gap-3 py-3">
                   <dt className="text-ink-muted">Loket / tarif / penjamin</dt>
                   <dd className="text-right font-semibold text-ink">Tidak tersedia pada backend</dd>
                 </div>
               </dl>
-              <div className={`mt-3 rounded-lg p-4 text-xs leading-5 ${sudahDiserahkan ? 'bg-brand-light-active text-brand-dark' : 'bg-warning-light text-warning'}`} role="status">
-                <PackageCheck className="mr-1.5 inline size-4" />
+              <div className={`mt-3 rounded-lg p-3 text-[10px] ${sudahDiserahkan ? 'bg-brand-light-active text-brand-dark' : 'bg-warning-light text-warning'}`} role="status">
+                <PackageCheck className="mr-1 inline size-3.5" />
                 {sudahDiserahkan
                   ? 'Status database mencatat resep sebagai obat sudah diberikan.'
                   : 'Konfirmasi akan memperbarui status E-Resep; backend belum menyimpan rincian serah-terima.'}
               </div>
               <Button
-                size="lg"
-                className="mt-4 min-h-12 w-full print:hidden"
+                className="mt-4 w-full print:hidden"
                 icon={CheckCircle2}
                 onClick={() => setModalKonfirmasi(true)}
                 disabled={sudahDiserahkan || processing}
@@ -281,8 +277,8 @@ export default function PengirimanObat({ eresepId, eresepServer }) {
               </Button>
             </section>
 
-            <section className="rounded-xl bg-surface-low p-5 text-xs leading-5 text-ink-soft">
-              <h2 className="flex items-center gap-2 text-sm font-bold text-ink">
+            <section className="rounded-xl bg-surface-low p-4 text-[10px] text-ink-soft">
+              <h2 className="flex items-center gap-2 font-bold text-ink">
                 <Info className="size-4 text-info" />
                 Informasi Backend
               </h2>
@@ -294,7 +290,7 @@ export default function PengirimanObat({ eresepId, eresepServer }) {
         </div>
 
         <div className="hidden print:block">
-          <p className="text-xs text-ink-muted">
+          <p className="text-[10px] text-ink-muted">
             Ringkasan ini dicetak dari data E-Resep. Tidak termasuk tanda tangan atau rincian petugas yang tidak tersedia pada sistem.
           </p>
         </div>
