@@ -24,6 +24,7 @@ export default function Profil({ pasien = {}, riwayat = [], infoPembaruan = {} }
   const updateResult = flash.profileUpdateResult || null;
 
   const [modalBuka, setModalBuka] = useState(false);
+  const [sudahTutupHasil, setSudahTutupHasil] = useState(false);
   const [form, setForm] = useState({
     nama_lengkap: pasien.nama_lengkap ?? '',
     tempat_lahir: pasien.tempat_lahir ?? '',
@@ -50,11 +51,20 @@ export default function Profil({ pasien = {}, riwayat = [], infoPembaruan = {} }
 
   function submitUpdate(e) {
     e.preventDefault();
+    setSudahTutupHasil(false);
     router.put(rute.pasien.profil, form, { preserveScroll: true });
   }
 
+  function tutupModal() {
+    setModalBuka(false);
+    if (updateResult?.status === 'success') {
+      setSudahTutupHasil(true);
+    }
+  }
+
   const rmCode = `RM-${String(pasien.id_pasien ?? 0).padStart(6, '0')}`;
-  const isBlocked = updateResult?.status === 'blocked' || !infoPembaruan.canUpdate;
+  const isSuccess = updateResult?.status === 'success' && !sudahTutupHasil;
+  const isBlocked = !isSuccess && (updateResult?.status === 'blocked' || !infoPembaruan.canUpdate);
 
   return (
     <AppLayout role="pasien" title="Profile Pasien">
@@ -174,23 +184,29 @@ export default function Profil({ pasien = {}, riwayat = [], infoPembaruan = {} }
       {/* Modal Pemutakhiran Data Pasien (_p3–_p13) */}
       <Modal
         open={modalBuka}
-        onClose={() => setModalBuka(false)}
+        onClose={tutupModal}
         title="Pemutakhiran Data Pasien"
         icon={UserCog}
         maxWidth="max-w-2xl"
       >
-        {updateResult?.status === 'success' && (
-          <div className="mb-4 rounded-2xl bg-brand-light-active p-4 text-brand-dark">
+        {isSuccess && (
+          <div className="rounded-2xl bg-brand-light-active p-5 text-brand-dark">
             <p className="flex items-center gap-2 text-xs font-extrabold"><BadgeCheck className="size-4" /> UPDATE BERHASIL !</p>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <p className="mt-2 text-xs leading-relaxed">
+              Data profil pasien berhasil dimutakhirkan. Pembaruan mandiri berikutnya dapat dilakukan setelah 365 hari.
+            </p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <div className="rounded-xl bg-white p-3 text-xs">
                 <p className="text-[10px] font-bold uppercase text-ink-muted">PEMBARUAN TERAKHIR</p>
-                <p className="mt-1 font-bold text-ink">{updateResult.lastUpdatedFormatted} <span className="text-danger">(0 hr lalu)</span></p>
+                <p className="mt-1 font-bold text-ink">{updateResult.lastUpdatedFormatted} <span className="text-brand">(Baru saja)</span></p>
               </div>
               <div className="rounded-xl bg-white p-3 text-xs">
                 <p className="text-[10px] font-bold uppercase text-ink-muted">INTERVAL BERJALAN</p>
-                <p className="mt-1 font-bold text-danger">0 Hari <span className="text-ink-muted">(&lt; 365 Hari)</span></p>
+                <p className="mt-1 font-bold text-brand">0 Hari <span className="text-ink-muted">(Berhasil diperbarui)</span></p>
               </div>
+            </div>
+            <div className="mt-4 flex justify-end">
+              <Button variant="secondary" onClick={tutupModal}>Tutup</Button>
             </div>
           </div>
         )}
@@ -217,7 +233,7 @@ export default function Profil({ pasien = {}, riwayat = [], infoPembaruan = {} }
           </div>
         )}
 
-        {!isBlocked && (
+        {!isSuccess && !isBlocked && (
           <form onSubmit={submitUpdate} className="space-y-4">
             <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-ink-soft">
               <Lock className="size-3.5" /> FORMULIR IDENTITAS

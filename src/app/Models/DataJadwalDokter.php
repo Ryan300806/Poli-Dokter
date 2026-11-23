@@ -114,7 +114,13 @@ class DataJadwalDokter extends Model
 
     public static function updateSlot(int $idSlot, array $dataBaru): bool
     {
-        return static::query()->whereKey($idSlot)->update($dataBaru) > 0;
+        if (! static::query()->whereKey($idSlot)->exists()) {
+            return false;
+        }
+
+        static::query()->whereKey($idSlot)->update($dataBaru);
+
+        return true;
     }
 
     public static function deleteSlot(int $idSlot): bool

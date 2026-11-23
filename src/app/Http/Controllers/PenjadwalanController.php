@@ -15,6 +15,11 @@ use Inertia\Response;
 /** Penjadwalan poli pasien dan manajemen jadwal praktek dokter sesuai Class Diagram. */
 class PenjadwalanController extends Controller
 {
+    private function nomorAntreanBerikutnya(): int
+    {
+        return ((int) DB::table('reservasi')->lockForUpdate()->max('nomor_antrean')) + 1;
+    }
+
     private function reservasiPasien(int $idPasien)
     {
         return DB::table('reservasi as r')
@@ -63,7 +68,7 @@ class PenjadwalanController extends Controller
                 throw ValidationException::withMessages(['id_slot' => 'Anda sudah memiliki reservasi pada slot jadwal ini.']);
             }
 
-            $nomor = DB::table('reservasi')->where('id_slot', $slot->id_slot)->whereNotIn('status_reservasi', ['dibatalkan'])->count() + 1;
+            $nomor = $this->nomorAntreanBerikutnya();
             $reservasi = DataReservasi::simpanReservasi([
                 'id_pasien' => $idPasien,
                 'id_dokter' => $slot->id_dokter,
@@ -158,7 +163,7 @@ class PenjadwalanController extends Controller
             }
 
             DataJadwalDokter::bebaskanSlotLama((int) $old->id_slot);
-            $nomor = DB::table('reservasi')->where('id_slot', $new->id_slot)->where('status_reservasi', '!=', 'dibatalkan')->count() + 1;
+            $nomor = $this->nomorAntreanBerikutnya();
             DataReservasi::updateReservasi($idReservasi, [
                 'id_slot' => $new->id_slot,
                 'id_dokter' => $new->id_dokter,
