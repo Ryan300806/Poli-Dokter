@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { router, usePage } from '@inertiajs/react';
-import { CalendarDays, CheckCircle2, Clock3, Download, Info, QrCode, RefreshCw, Search, Ticket, XCircle } from 'lucide-react';
+import { CalendarDays, CheckCircle2, Clock3, Download, Info, RefreshCw, Search, Ticket, XCircle } from 'lucide-react';
 import AppLayout from '../../Layouts/AppLayout';
 import Button from '../../Components/ui/Button';
 import Badge from '../../Components/ui/Badge';
@@ -16,28 +16,45 @@ export default function RiwayatReservasi({ reservasi = [], tab = 'aktif', slots 
   const bookingSuccess = flash.bookingSuccess || null;
 
   const [cari, setCari] = useState('');
-  const [tiketAktif, setTiketAktif] = useState(reservasi[0] || null);
+  const [tiketId, setTiketId] = useState(bookingSuccess?.id_reservasi || reservasi[0]?.id_reservasi);
+  const [batal, setBatal] = useState(null);
+  const [alasan, setAlasan] = useState('');
+  const [sibuk, setSibuk] = useState(false);
+  const [memuat, setMemuat] = useState(false);
   const [ubahItem, setUbahItem] = useState(null);
   const [slotBaru, setSlotBaru] = useState('');
   const [showBookingModal, setShowBookingModal] = useState(Boolean(bookingSuccess));
 
   const filtered = reservasi.filter((r) => `${r.nama_dokter} ${r.nama_poli}`.toLowerCase().includes(cari.toLowerCase()));
-  const tiket = tiketAktif && filtered.some((x) => x.id_reservasi === tiketAktif.id_reservasi) ? tiketAktif : filtered[0];
+  const tiket = filtered.find((item) => item.id_reservasi === tiketId) || filtered[0];
 
   function pindahTab(key) {
     router.get(rute.pasien.riwayatReservasi, { status: key }, { preserveScroll: true, preserveState: true });
   }
 
-  function batalkan(id) {
-    if (window.confirm('Batalkan reservasi ini? Kuota slot dokter akan dikembalikan secara otomatis.')) {
-      router.delete(rute.pasien.batalkanReservasi(id), { preserveScroll: true });
-    }
+  function batalkan() {
+    if (!batal || sibuk) return;
+    setSibuk(true);
+    router.delete(rute.pasien.batalkanReservasi(batal.id_reservasi), {
+      data: { alasan }, preserveScroll: true,
+      onSuccess: () => { setBatal(null); setAlasan(''); },
+      onFinish: () => setSibuk(false),
+    });
+  }
+
+  function bukaUbah(item) {
+    setUbahItem(item);
+    setSlotBaru('');
+    setMemuat(true);
+    router.reload({ data: { reservasi_ubah: item.id_reservasi }, only: ['slots'], onFinish: () => setMemuat(false) });
   }
 
   function simpanUbah() {
-    if (!ubahItem || !slotBaru) return;
+    if (!ubahItem || !slotBaru || sibuk) return;
+    setSibuk(true);
     router.put(rute.pasien.ubahReservasi(ubahItem.id_reservasi), { id_slot: Number(slotBaru) }, {
       preserveScroll: true,
+      onFinish: () => setSibuk(false),
       onSuccess: () => { setUbahItem(null); setSlotBaru(''); },
     });
   }
@@ -45,7 +62,7 @@ export default function RiwayatReservasi({ reservasi = [], tab = 'aktif', slots 
   return (
     <AppLayout role="pasien" title="Riwayat Reservasi">
       <header>
-        <h1 className="text-3xl font-extrabold text-ink">Riwayat Reservasi</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-ink">Riwayat Reservasi</h1>
         <p className="mt-1 text-xs text-ink-soft">Kelola jadwal kunjungan dan pantau tiket antrean aktif Anda secara real-time.</p>
       </header>
 
@@ -98,8 +115,8 @@ export default function RiwayatReservasi({ reservasi = [], tab = 'aktif', slots 
           {filtered.length > 0 ? filtered.map((item) => (
             <article
               key={item.id_reservasi}
-              onClick={() => setTiketAktif(item)}
-              className={`cursor-pointer rounded-2xl border-l-4 bg-white p-5 shadow-card transition ${
+              
+              className={`rounded-2xl border-l-4 bg-white p-5 shadow-card transition ${
                 tab === 'dibatalkan' ? 'border-danger' : 'border-brand'
               } ${tiket?.id_reservasi === item.id_reservasi && tab === 'aktif' ? 'ring-2 ring-brand/25' : ''}`}
             >
@@ -126,9 +143,10 @@ export default function RiwayatReservasi({ reservasi = [], tab = 'aktif', slots 
                   <span className="text-xs font-semibold text-ink-soft">
                     Nomor Antrean: <b className="text-brand">A-{String(item.nomor_antrean).padStart(3, '0')}</b> ({item.status_antrean || 'menunggu'})
                   </span>
-                  <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                    <Button variant="softDanger" icon={XCircle} onClick={() => batalkan(item.id_reservasi)}>Batalkan</Button>
-                    <Button variant="softBrand" icon={RefreshCw} onClick={() => { setUbahItem(item); setSlotBaru(''); }}>Ubah Jadwal</Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" onClick={() => setTiketId(item.id_reservasi)}>Lihat tiket</Button>
+                    <Button variant="softDanger" icon={XCircle} onClick={() => { setAlasan(''); setBatal(item); }}>Batalkan</Button>
+                    <Button variant="softBrand" icon={RefreshCw} onClick={() => bukaUbah(item)}>Ubah Jadwal</Button>
                   </div>
                 </div>
               )}
@@ -150,7 +168,7 @@ export default function RiwayatReservasi({ reservasi = [], tab = 'aktif', slots 
 
         {/* Tiket Antrean Resmi (_p15 / _p17) */}
         {tab === 'aktif' && tiket && (
-          <aside className="overflow-hidden rounded-2xl bg-white shadow-card">
+          <aside className="queue-ticket overflow-hidden rounded-2xl bg-white shadow-card">
             <div className="h-2 bg-brand" />
             <div className="p-5">
               <div className="flex items-center justify-between gap-2">
@@ -160,14 +178,14 @@ export default function RiwayatReservasi({ reservasi = [], tab = 'aktif', slots 
                   </span>
                   <div>
                     <h3 className="text-sm font-bold text-ink">Tiket Antrean Resmi</h3>
-                    <p className="text-[10px] text-ink-muted">RS Citra Medika • Rawat Jalan</p>
+                    <p className="text-[11px] text-ink-muted">RS Citra Medika • Rawat Jalan</p>
                   </div>
                 </div>
                 <Badge tone="success">{tiket.tanggal}</Badge>
               </div>
 
               <div className="mt-4 rounded-2xl bg-surface-low px-4 py-5 text-center">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-brand">NOMOR ANTREAN ANDA</p>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-brand">NOMOR ANTREAN ANDA</p>
                 <p className="mt-1 text-4xl font-extrabold text-brand">A-{String(tiket.nomor_antrean).padStart(3, '0')}</p>
                 <p className="mt-1.5 text-[11px] text-ink-soft">Status: <b>{tiket.status_antrean || 'menunggu'}</b></p>
               </div>
@@ -182,18 +200,29 @@ export default function RiwayatReservasi({ reservasi = [], tab = 'aktif', slots 
               </div>
 
               <div className="mt-5 rounded-xl border border-line p-4 text-center">
-                <QrCode className="mx-auto size-16 text-ink" />
+                <p className="text-xs text-ink-muted">Kode tiket</p>
                 <p className="mt-2 text-[11px] font-bold text-ink-soft">{tiket.kode_tiket}</p>
-                <p className="text-[10px] text-ink-muted">Tunjukkan kode ini saat check-in di loket poli.</p>
+                <p className="text-[11px] text-ink-muted">Tunjukkan tiket kepada petugas loket.</p>
               </div>
 
               <Button icon={Download} className="mt-4 w-full" onClick={() => window.print()}>
-                Unduh / Cetak E-Tiket
+                Cetak tiket
               </Button>
             </div>
           </aside>
         )}
       </div>
+
+      <Modal open={Boolean(batal)} onClose={() => { if (!sibuk) setBatal(null); }} title="Batalkan reservasi?"
+        subtitle={batal ? `${batal.nama_dokter} · ${fmtDate(batal.tanggal)} · ${String(batal.jam).slice(0,5)} WIB` : ''}
+        footer={<><Button variant="outline" onClick={() => setBatal(null)} disabled={sibuk}>Pertahankan jadwal</Button>
+          <Button variant="danger" disabled={sibuk} onClick={batalkan}>Batalkan reservasi</Button></>}>
+        <p className="text-sm text-ink-soft">Kuota akan tersedia kembali untuk pasien lain.</p>
+        <label className="field-label mt-4">Alasan pembatalan (opsional)
+          <textarea className="mt-1 w-full rounded-lg p-2" value={alasan} maxLength={255} onChange={(e) => setAlasan(e.target.value)} />
+        </label>
+        {errors.alasan && <p role="alert" className="field-error">{errors.alasan}</p>}
+      </Modal>
 
       {/* Modal Ubah Jadwal */}
       <Modal
@@ -205,7 +234,7 @@ export default function RiwayatReservasi({ reservasi = [], tab = 'aktif', slots 
         footer={(
           <>
             <Button variant="secondary" onClick={() => setUbahItem(null)}>Batal</Button>
-            <Button onClick={simpanUbah} disabled={!slotBaru}>Simpan Jadwal Baru</Button>
+            <Button onClick={simpanUbah} disabled={!slotBaru || sibuk || memuat}>Simpan Jadwal Baru</Button>
           </>
         )}
       >
@@ -216,14 +245,15 @@ export default function RiwayatReservasi({ reservasi = [], tab = 'aktif', slots 
             onChange={(e) => setSlotBaru(e.target.value)}
             className="mt-2 h-11 w-full rounded-xl bg-surface-input px-3 text-xs outline-none focus:ring-2 focus:ring-brand/30"
           >
-            <option value="">-- Pilih Jadwal Tersedia --</option>
-            {slots.map((s) => (
+            <option value="">{memuat ? 'Memuat jadwal…' : slots.length ? 'Pilih jadwal tersedia' : 'Belum ada jadwal pengganti untuk dokter ini'}</option>
+            {!memuat && slots.filter((s) => Number(s.id_slot) !== Number(ubahItem?.id_slot)).map((s) => (
               <option key={s.id_slot} value={s.id_slot}>
                 {s.nama_poli} — {s.nama_dokter} ({s.tanggal} • {String(s.jam).slice(0, 5)} | Sisa {s.sisa_kuota})
               </option>
             ))}
           </select>
         </label>
+        {errors.id_slot && <p role="alert" className="field-error">{errors.id_slot}</p>}
       </Modal>
 
       {/* Modal Berhasil Booking (_p29) */}
@@ -236,10 +266,10 @@ export default function RiwayatReservasi({ reservasi = [], tab = 'aktif', slots 
             <p className="mt-3 text-xs text-ink-soft">Janji temu Anda telah terkonfirmasi oleh sistem rawat jalan.</p>
             <div className="mt-4 rounded-2xl border border-dashed border-brand/40 bg-surface-low p-4 text-left">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase text-ink-muted">NOMOR ANTREAN POLI</span>
+                <span className="text-[11px] font-bold uppercase text-ink-muted">NOMOR ANTREAN POLI</span>
                 <Badge tone="success">Tervalidasi</Badge>
               </div>
-              <p className="mt-1 text-3xl font-extrabold text-brand">A-{String(bookingSuccess.nomor_antrean).padStart(3, '0')}</p>
+              <p className="mt-1 text-2xl sm:text-3xl font-bold text-brand">A-{String(bookingSuccess.nomor_antrean).padStart(3, '0')}</p>
               <div className="mt-3 space-y-1 border-t border-line pt-2 text-xs">
                 <p className="flex justify-between"><span className="text-ink-muted">Poli:</span><b>{bookingSuccess.nama_poli}</b></p>
                 <p className="flex justify-between"><span className="text-ink-muted">Dokter:</span><b>{bookingSuccess.nama_dokter}</b></p>

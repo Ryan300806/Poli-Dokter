@@ -17,6 +17,7 @@ class DataPasien extends Model
 
     protected $fillable = [
         'user_id',
+        'no_kk',
         'nik',
         'nama_lengkap',
         'tempat_lahir',
@@ -64,6 +65,18 @@ class DataPasien extends Model
         $pasien = static::query()->where('nik', $nik)->first();
 
         return $pasien !== null && Hash::check($password, $pasien->password);
+    }
+
+    public static function perluKonfirmasiProfil(int $idPasien): bool
+    {
+        $kunjungan = \Illuminate\Support\Facades\DB::table('reservasi')->where('id_pasien', $idPasien)
+            ->where('status_reservasi', 'selesai')->max('tanggal');
+        if (! $kunjungan || Carbon::parse($kunjungan)->addYear()->isFuture()) {
+            return false;
+        }
+        $terakhir = static::getTanggalUpdateTerakhir($idPasien);
+
+        return ! $terakhir || ! $terakhir->copy()->addDays(365)->isFuture();
     }
 
     public static function getTanggalUpdateTerakhir(int $idPasien): ?Carbon

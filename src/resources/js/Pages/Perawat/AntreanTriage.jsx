@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { router } from '@inertiajs/react';
+import { router, usePoll } from '@inertiajs/react';
 import { Activity, CheckCircle2, Clock3, RefreshCw, Search } from 'lucide-react';
 import AppLayout from '../../Layouts/AppLayout';
 import Button from '../../Components/ui/Button';
@@ -8,6 +8,7 @@ import StatCard from '../../Components/ui/StatCard';
 import { rute } from '../../lib/rute';
 
 export default function AntreanTriage({ antrean = [] }) {
+  usePoll(30000, { only: ['antrean'], preserveScroll: true });
   const [kata, setKata] = useState('');
   const [poli, setPoli] = useState('semua');
   const [filterStatus, setFilterStatus] = useState('semua');
@@ -29,17 +30,16 @@ export default function AntreanTriage({ antrean = [] }) {
   const sudahDiukur = antrean.filter((r) => r.id_observasi).length;
 
   return (
-    <AppLayout role="perawat" title="Daftar Antrean Triage">
+    <AppLayout role="perawat" title="Daftar Antrean Triase">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <Badge tone="success">UNIT RAWAT JALAN</Badge>
-          <h1 className="mt-1.5 text-3xl font-extrabold text-ink">Daftar Antrean Triage Rawat Jalan</h1>
+          <h1 className="mt-1.5 text-2xl sm:text-3xl font-bold text-ink">Daftar Antrean Triase Rawat Jalan</h1>
           <p className="mt-1 text-xs text-ink-soft">
             Pemeriksaan tanda-tanda vital dan skrining awal pasien sebelum masuk ruang periksa dokter spesialis.
           </p>
         </div>
         <Button variant="outline" icon={RefreshCw} onClick={() => router.reload({ only: ['antrean'] })}>
-          Refresh Antrean
+          Perbarui antrean
         </Button>
       </header>
 
@@ -53,7 +53,7 @@ export default function AntreanTriage({ antrean = [] }) {
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line p-4">
           <div className="flex flex-wrap items-center gap-2">
             <select
-              value={poli}
+              aria-label="Filter poli" value={poli}
               onChange={(e) => setPoli(e.target.value)}
               className="h-9 rounded-xl bg-surface-input px-3 text-xs font-semibold outline-none"
             >
@@ -61,13 +61,13 @@ export default function AntreanTriage({ antrean = [] }) {
               {poliOptions.map((p) => <option key={p} value={p}>{p}</option>)}
             </select>
             <select
-              value={filterStatus}
+              aria-label="Filter status triase" value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
               className="h-9 rounded-xl bg-surface-input px-3 text-xs font-semibold outline-none"
             >
-              <option value="semua">Semua Status Triage</option>
+              <option value="semua">Semua Status Triase</option>
               <option value="belum">Belum Diukur</option>
-              <option value="selesai">Triage Selesai</option>
+              <option value="selesai">Triase Selesai</option>
             </select>
             <div className="flex gap-1">
               {['semua', 'Geriatri', 'Pediatri'].map((k) => (
@@ -88,7 +88,7 @@ export default function AntreanTriage({ antrean = [] }) {
           <label className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-muted" />
             <input
-              value={kata}
+              aria-label="Cari pasien atau nomor rekam medis" value={kata}
               onChange={(e) => setKata(e.target.value)}
               placeholder="Cari nama pasien, No. RM..."
               className="h-9 w-full rounded-xl bg-surface-input pl-9 pr-3 text-xs outline-none focus:ring-2 focus:ring-brand/30"
@@ -98,7 +98,7 @@ export default function AntreanTriage({ antrean = [] }) {
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-surface-low text-[10px] font-bold uppercase tracking-wider text-ink-muted">
+            <thead className="bg-surface-low text-[11px] font-bold uppercase tracking-wider text-ink-muted">
               <tr>
                 <th className="px-5 py-3.5">No. Urut</th>
                 <th className="px-4 py-3.5">Waktu</th>
@@ -120,7 +120,7 @@ export default function AntreanTriage({ antrean = [] }) {
                   <td className="px-4 py-4 font-bold text-ink">{row.jam} WIB</td>
                   <td className="px-4 py-4">
                     <p className="font-bold text-ink">{row.rm}</p>
-                    <p className="text-[10px] text-ink-muted">NIK: {row.nik}</p>
+                    <p className="text-[11px] text-ink-muted">NIK: {row.nik}</p>
                   </td>
                   <td className="px-4 py-4">
                     <p className="font-bold text-ink">{row.nama}</p>
@@ -131,7 +131,7 @@ export default function AntreanTriage({ antrean = [] }) {
                   </td>
                   <td className="px-4 py-4">
                     <Badge tone={row.id_observasi ? 'success' : 'warning'} dot>
-                      {row.id_observasi ? `Triage Selesai (${row.tekanan_darah})` : 'Belum Diukur'}
+                      {row.id_observasi ? `Triase Selesai (${row.tekanan_darah})` : 'Belum Diukur'}
                     </Badge>
                   </td>
                   <td className="px-5 py-4 text-right">

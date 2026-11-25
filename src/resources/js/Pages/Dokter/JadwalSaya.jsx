@@ -14,6 +14,10 @@ export default function JadwalSaya({ dokter = {}, jadwalServer = [], pasienServe
   const [form, setForm] = useState({ tanggal: tanggal || '', jam: '08:00', kuota: 10 });
   const [error, setError] = useState('');
 
+  const [tinjau, setTinjau] = useState(false);
+  const [hapus, setHapus] = useState(null);
+  const [sibuk, setSibuk] = useState(false);
+
   const totalKuota = jadwalServer.reduce((sum, s) => sum + Number(s.kuota), 0);
   const totalTerisi = jadwalServer.reduce((sum, s) => sum + Number(s.terisi), 0);
   const totalSisa = Math.max(0, totalKuota - totalTerisi);
@@ -22,6 +26,7 @@ export default function JadwalSaya({ dokter = {}, jadwalServer = [], pasienServe
     setEditItem(null);
     setForm({ tanggal: tanggal || new Date().toISOString().slice(0, 10), jam: '09:00', kuota: 8 });
     setError('');
+    setTinjau(false);
     setModalOpen(true);
   }
 
@@ -29,28 +34,41 @@ export default function JadwalSaya({ dokter = {}, jadwalServer = [], pasienServe
     setEditItem(item);
     setForm({ tanggal: item.tanggal, jam: item.mulai, kuota: item.kuota });
     setError('');
+    setTinjau(false);
     setModalOpen(true);
   }
 
   function simpanSlot(e) {
     e.preventDefault();
+    if (sibuk) return;
+    if (editItem && !tinjau) {
+      setError('');
+      setTinjau(true);
+      return;
+    }
+    setSibuk(true);
     if (editItem) {
       router.put(`/dokter/jadwal-saya/slot/${editItem.id}`, form, {
+        onFinish: () => setSibuk(false),
         onSuccess: () => setModalOpen(false),
-        onError: (errs) => setError(errs.jam || errs.tanggal || errs.kuota || 'Gagal memperbarui slot.'),
+        onError: (errs) => { setTinjau(false); setError(Object.values(errs)[0] || 'Gagal memperbarui slot.'); },
       });
     } else {
       router.post('/dokter/jadwal-saya/slot', form, {
+        onFinish: () => setSibuk(false),
         onSuccess: () => setModalOpen(false),
         onError: (errs) => setError(errs.jam || errs.tanggal || errs.kuota || 'Jadwal bentrok atau tidak valid.'),
       });
     }
   }
 
-  function hapusSlot(id) {
-    if (window.confirm('Hapus slot jadwal praktek ini?')) {
-      router.delete(`/dokter/jadwal-saya/slot/${id}`, { preserveScroll: true });
-    }
+  function hapusSlot() {
+    if (!hapus || sibuk) return;
+    setSibuk(true);
+    router.delete(`/dokter/jadwal-saya/slot/${hapus.id}`, {
+      preserveScroll: true, onSuccess: () => setHapus(null),
+      onError: (errs) => setError(Object.values(errs)[0]), onFinish: () => setSibuk(false),
+    });
   }
 
   function gantiTanggal(val) {
@@ -58,18 +76,18 @@ export default function JadwalSaya({ dokter = {}, jadwalServer = [], pasienServe
   }
 
   return (
-    <AppLayout role="dokter" title="Manajemen Jadwal Praktek">
+    <AppLayout role="dokter" title="Manajemen Jadwal Praktik">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <Badge tone="success">{dokter.poli} • {dokter.nama}</Badge>
-          <h1 className="mt-1.5 text-3xl font-extrabold text-ink">Manajemen Jadwal Praktek</h1>
-          <p className="mt-1 text-xs text-ink-soft">Atur kuota jam praktek dan pantau registrasi pasien secara terintegrasi.</p>
+          <h1 className="mt-1.5 text-2xl sm:text-3xl font-bold text-ink">Manajemen Jadwal Praktik</h1>
+          <p className="mt-1 text-xs text-ink-soft">Atur jam dan kuota kunjungan untuk tanggal yang dipilih.</p>
         </div>
         <div className="flex items-center gap-2 rounded-xl bg-white px-3 py-2 shadow-card">
           <CalendarDays className="size-4 text-brand" />
           <input
             type="date"
-            value={tanggal}
+            aria-label="Tanggal praktik" value={tanggal}
             onChange={(e) => gantiTanggal(e.target.value)}
             className="text-xs font-bold text-ink outline-none"
           />
@@ -77,7 +95,7 @@ export default function JadwalSaya({ dokter = {}, jadwalServer = [], pasienServe
       </header>
 
       <section className="grid gap-4 md:grid-cols-3">
-        <StatCard label="TOTAL PASIEN HARI INI" value={pasienServer.length} unit="Pasien" icon={Users} />
+        <StatCard label="PASIEN TERJADWAL" value={pasienServer.length} unit="Pasien" icon={Users} />
         <StatCard label="SLOT TERSEDIA" value={totalSisa} unit="Kuota tersisa" icon={CheckCircle2} tone="brand" />
         <StatCard label="SLOT TERISI" value={totalTerisi} unit={`dari ${totalKuota} kapasitas`} icon={Clock3} />
       </section>
@@ -85,7 +103,7 @@ export default function JadwalSaya({ dokter = {}, jadwalServer = [], pasienServe
       <section className="rounded-2xl bg-white p-5 shadow-card">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-4">
           <div>
-            <h2 className="text-base font-bold text-ink">Jadwal Praktek Harian</h2>
+            <h2 className="text-base font-bold text-ink">Jadwal Praktik Harian</h2>
             <p className="text-[11px] text-ink-muted">{jadwalServer.length} Sesi Terdaftar pada {tanggal}</p>
           </div>
           <Button icon={Plus} onClick={bukaTambah}>Tambah Slot</Button>
@@ -93,7 +111,7 @@ export default function JadwalSaya({ dokter = {}, jadwalServer = [], pasienServe
 
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-surface-low text-[10px] font-bold uppercase tracking-wider text-ink-muted">
+            <thead className="bg-surface-low text-[11px] font-bold uppercase tracking-wider text-ink-muted">
               <tr>
                 <th className="px-4 py-3">Jam Mulai</th>
                 <th className="px-4 py-3">Jam Selesai</th>
@@ -115,10 +133,10 @@ export default function JadwalSaya({ dokter = {}, jadwalServer = [], pasienServe
                   </td>
                   <td className="px-4 py-3.5 text-right">
                     <div className="inline-flex gap-1">
-                      <button type="button" onClick={() => bukaEdit(slot)} className="rounded-lg p-2 text-ink-soft hover:bg-surface-low">
+                      <button type="button" aria-label={`Ubah slot ${slot.mulai}`} onClick={() => bukaEdit(slot)} className="rounded-lg p-2 text-ink-soft hover:bg-surface-low">
                         <Pencil className="size-4" />
                       </button>
-                      <button type="button" onClick={() => hapusSlot(slot.id)} className="rounded-lg p-2 text-danger hover:bg-danger-light">
+                      <button type="button" aria-label={`Hapus slot ${slot.mulai}`} onClick={() => { setError(''); setHapus(slot); }} className="rounded-lg p-2 text-danger hover:bg-danger-light">
                         <Trash2 className="size-4" />
                       </button>
                     </div>
@@ -126,7 +144,7 @@ export default function JadwalSaya({ dokter = {}, jadwalServer = [], pasienServe
                 </tr>
               )) : (
                 <tr>
-                  <td colSpan={5} className="py-8 text-center text-ink-muted">Belum ada slot praktek pada tanggal ini.</td>
+                  <td colSpan={5} className="py-8 text-center text-ink-muted">Belum ada slot praktik pada tanggal ini.</td>
                 </tr>
               )}
             </tbody>
@@ -155,23 +173,37 @@ export default function JadwalSaya({ dokter = {}, jadwalServer = [], pasienServe
       </section>
 
       {/* Modal Tambah/Edit Slot (_p30) */}
+      <Modal open={Boolean(hapus)} onClose={() => { if (!sibuk) setHapus(null); }} title="Hapus slot praktik?"
+        subtitle={hapus ? `${hapus.tanggal} · ${hapus.mulai} WIB · ${hapus.kuota} tempat` : ''}
+        footer={<><Button variant="outline" disabled={sibuk} onClick={() => setHapus(null)}>Kembali</Button>
+          <Button variant="danger" disabled={sibuk} onClick={hapusSlot}>Hapus slot</Button></>}>
+        <p>Slot yang dihapus akan hilang dari pilihan jadwal pasien.</p>
+        {error && <p role="alert" className="field-error">{error}</p>}
+      </Modal>
       <Modal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title={editItem ? 'Ubah Slot Jadwal' : 'Tambah Slot Jadwal Baru'}
+        onClose={() => { if (!sibuk) setModalOpen(false); }}
+        title={tinjau ? 'Konfirmasi perubahan slot' : editItem ? 'Ubah Slot Jadwal' : 'Tambah Slot Jadwal Baru'}
         icon={CalendarDays}
         footer={(
           <>
-            <Button variant="danger" onClick={() => setModalOpen(false)}>Batal</Button>
-            <Button onClick={simpanSlot}>Simpan Slot</Button>
+            <Button variant="outline" disabled={sibuk} onClick={() => tinjau ? setTinjau(false) : setModalOpen(false)}>{tinjau ? 'Kembali ke formulir' : 'Batal'}</Button>
+            <Button disabled={sibuk} type="submit" form="form-slot">{sibuk ? 'Menyimpan…' : tinjau ? 'Konfirmasi perubahan' : editItem ? 'Tinjau perubahan' : 'Simpan slot'}</Button>
           </>
         )}
       >
-        <form onSubmit={simpanSlot} className="space-y-4">
+        <form id="form-slot" onSubmit={simpanSlot} className="space-y-4">
+          {tinjau ? (
+            <dl className="space-y-3 text-sm">
+              <div><dt className="font-semibold">Pasien terdaftar</dt><dd>{editItem.terisi} pasien. {editItem.terisi > 0 && 'Jam dan tanggal tetap selama masih ada reservasi. Kuota dapat disesuaikan.'}</dd></div>
+              <div className="rounded-lg bg-surface-low p-3"><dt className="font-semibold">Jadwal saat ini</dt><dd>{editItem.tanggal} · {editItem.mulai} WIB · Kuota {editItem.kuota} pasien</dd></div>
+              <div className="rounded-lg bg-brand-light p-3"><dt className="font-semibold">Jadwal yang akan disimpan</dt><dd>{form.tanggal} · {form.jam} WIB · Kuota {form.kuota} pasien</dd></div>
+            </dl>
+          ) : (<>
           <label className="block text-xs font-bold">
-            Tanggal Praktek <span className="text-danger">*</span>
+            Tanggal Praktik <span className="text-danger">*</span>
             <input
-              type="date"
+              type="date" required
               value={form.tanggal}
               onChange={(e) => setForm({ ...form, tanggal: e.target.value })}
               className="mt-1.5 h-11 w-full rounded-xl bg-surface-input px-3 text-xs outline-none"
@@ -181,7 +213,7 @@ export default function JadwalSaya({ dokter = {}, jadwalServer = [], pasienServe
             <label className="block text-xs font-bold">
               Jam Mulai <span className="text-danger">*</span>
               <input
-                type="time"
+                type="time" required
                 value={form.jam}
                 onChange={(e) => setForm({ ...form, jam: e.target.value })}
                 className="mt-1.5 h-11 w-full rounded-xl bg-surface-input px-3 text-xs outline-none"
@@ -190,7 +222,7 @@ export default function JadwalSaya({ dokter = {}, jadwalServer = [], pasienServe
             <label className="block text-xs font-bold">
               Kuota Pasien Maksimum <span className="text-danger">*</span>
               <input
-                type="number"
+                type="number" required
                 min={1}
                 max={200}
                 value={form.kuota}
@@ -199,7 +231,8 @@ export default function JadwalSaya({ dokter = {}, jadwalServer = [], pasienServe
               />
             </label>
           </div>
-          {error && <p className="rounded-xl bg-danger-light p-3 text-xs font-semibold text-danger">{error}</p>}
+          </>)}
+          {error && <p role="alert" className="rounded-xl bg-danger-light p-3 text-xs font-semibold text-danger">{error}</p>}
         </form>
       </Modal>
     </AppLayout>

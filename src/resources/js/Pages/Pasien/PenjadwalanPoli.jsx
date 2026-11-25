@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { router, usePage } from '@inertiajs/react';
+import { router, usePage, usePoll } from '@inertiajs/react';
 import { ArrowRight, CalendarDays, CalendarX, CheckCircle2, Info, MapPin, Stethoscope } from 'lucide-react';
 import AppLayout from '../../Layouts/AppLayout';
 import Button from '../../Components/ui/Button';
@@ -9,19 +9,19 @@ import { rute } from '../../lib/rute';
 
 const fmtDate = (v) => new Intl.DateTimeFormat('id-ID', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(`${v}T00:00:00`));
 
-export default function PenjadwalanPoli({ poli = [], dokter = [], slots = [], poliTerpilih = null }) {
+export default function PenjadwalanPoli({ poli = [], dokter = [], slots = [], poliTerpilih = null, tanggal }) {
+  usePoll(30000, { only: ['slots'], preserveScroll: true });
   const { errors = {} } = usePage().props;
   const [dokterTerpilih, setDokterTerpilih] = useState('');
-  const [tanggalTerpilih, setTanggalTerpilih] = useState('');
+  const [sibuk, setSibuk] = useState(false);
   const [slotDipilih, setSlotDipilih] = useState(null);
   const [modalPenuh, setModalPenuh] = useState(false);
 
   const filteredSlots = useMemo(() => {
     return slots.filter((s) => (
       (!dokterTerpilih || String(s.id_dokter) === dokterTerpilih)
-      && (!tanggalTerpilih || s.tanggal === tanggalTerpilih)
     ));
-  }, [slots, dokterTerpilih, tanggalTerpilih]);
+  }, [slots, dokterTerpilih]);
 
   // Kelompokkan slot per dokter + tanggal seperti desain _p16
   const grouped = useMemo(() => {
@@ -45,27 +45,29 @@ export default function PenjadwalanPoli({ poli = [], dokter = [], slots = [], po
 
   const selectedSlotObj = slots.find((s) => s.id_slot === slotDipilih) || null;
 
-  function pilihPoli(val) {
+  function pilihFilter(val, hari) {
+    if (!hari) return;
     setDokterTerpilih('');
     setSlotDipilih(null);
-    router.get(rute.pasien.penjadwalanPoli, val ? { poli: val } : {}, { preserveScroll: true, preserveState: true });
+    router.get(rute.pasien.penjadwalanPoli, { poli: val || undefined, tanggal: hari }, { only: ['dokter', 'slots', 'poliTerpilih', 'tanggal'], preserveScroll: true, preserveState: true });
   }
 
   function konfirmasiBooking() {
-    if (!selectedSlotObj) return;
+    if (!selectedSlotObj || sibuk) return;
     if (selectedSlotObj.sisa_kuota < 1) {
       setModalPenuh(true);
       return;
     }
+    setSibuk(true);
     router.post(rute.pasien.reservasi, { id_slot: selectedSlotObj.id_slot }, {
-      onError: () => setModalPenuh(true),
+      onFinish: () => setSibuk(false),
     });
   }
 
   return (
     <AppLayout role="pasien" title="Penjadwalan Poli">
       <header>
-        <h1 className="text-3xl font-extrabold text-ink">Penjadwalan Poli</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-ink">Penjadwalan Poli</h1>
         <p className="mt-1 text-xs text-ink-soft">Lihat ketersediaan dokter dan buat janji temu rawat jalan dengan cepat.</p>
       </header>
 
@@ -75,7 +77,7 @@ export default function PenjadwalanPoli({ poli = [], dokter = [], slots = [], po
           Pilih Poli
           <select
             value={poliTerpilih ?? ''}
-            onChange={(e) => pilihPoli(e.target.value)}
+            onChange={(e) => pilihFilter(e.target.value, tanggal)}
             className="mt-2 h-11 w-full rounded-xl bg-surface-input px-3 text-xs font-medium text-ink outline-none focus:ring-2 focus:ring-brand/30"
           >
             <option value="">Semua Poli</option>
@@ -98,8 +100,8 @@ export default function PenjadwalanPoli({ poli = [], dokter = [], slots = [], po
           <input
             type="date"
             min={new Date().toLocaleDateString('sv-SE')}
-            value={tanggalTerpilih}
-            onChange={(e) => { setTanggalTerpilih(e.target.value); setSlotDipilih(null); }}
+            value={tanggal}
+            onChange={(e) => pilihFilter(poliTerpilih, e.target.value)}
             className="mt-2 h-11 w-full rounded-xl bg-surface-input px-3 text-xs font-medium text-ink outline-none focus:ring-2 focus:ring-brand/30"
           />
         </label>
@@ -120,7 +122,7 @@ export default function PenjadwalanPoli({ poli = [], dokter = [], slots = [], po
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <h2 className="text-base font-bold text-ink">{grp.nama_dokter}</h2>
-                      <Badge tone="success">Tersedia</Badge>
+                      <Badge tone={grp.sesi.some((slot) => slot.sisa_kuota > 0) ? 'success' : 'warning'}>{grp.sesi.some((slot) => slot.sisa_kuota > 0) ? 'Tersedia' : 'Penuh'}</Badge>
                     </div>
                     <p className="mt-0.5 text-xs text-ink-soft">{grp.nama_poli} • {fmtDate(grp.tanggal)}</p>
                   </div>
@@ -130,7 +132,7 @@ export default function PenjadwalanPoli({ poli = [], dokter = [], slots = [], po
                 </span>
               </div>
 
-              <p className="mt-4 text-[10px] font-bold uppercase tracking-wider text-ink-muted">PILIH SESI PRAKTIK DOKTER</p>
+              <p className="mt-4 text-[11px] font-bold uppercase tracking-wider text-ink-muted">PILIH SESI PRAKTIK DOKTER</p>
               <div className="mt-2 flex flex-wrap gap-2.5">
                 {grp.sesi.map((s) => {
                   const penuh = s.sisa_kuota < 1;
@@ -149,7 +151,7 @@ export default function PenjadwalanPoli({ poli = [], dokter = [], slots = [], po
                       }`}
                     >
                       <span className="block text-xs font-bold">{String(s.jam).slice(0, 5)}</span>
-                      <span className={`block text-[10px] font-semibold ${aktif ? 'text-white/90' : penuh ? 'text-danger' : 'text-brand'}`}>
+                      <span className={`block text-[11px] font-semibold ${aktif ? 'text-white/90' : penuh ? 'text-danger' : 'text-brand'}`}>
                         {aktif ? 'Terpilih' : penuh ? 'Penuh' : `Sisa ${s.sisa_kuota}`}
                       </span>
                     </button>
@@ -167,7 +169,7 @@ export default function PenjadwalanPoli({ poli = [], dokter = [], slots = [], po
         </section>
 
         {/* Ringkasan Janji (_p16) */}
-        <aside className="sticky top-24 rounded-2xl bg-white p-5 shadow-card">
+        <aside className="lg:sticky lg:top-24 rounded-2xl bg-white p-5 shadow-card">
           <div className="flex items-center gap-3 border-b border-line pb-4">
             <span className="flex size-9 items-center justify-center rounded-xl bg-brand-light-active text-brand">
               <CalendarDays className="size-5" />
@@ -204,11 +206,11 @@ export default function PenjadwalanPoli({ poli = [], dokter = [], slots = [], po
 
           <Button
             icon={ArrowRight}
-            disabled={!selectedSlotObj}
+            disabled={!selectedSlotObj || sibuk}
             onClick={konfirmasiBooking}
             className="mt-5 w-full h-11"
           >
-            Konfirmasi Booking
+            {sibuk ? 'Memesan…' : 'Konfirmasi reservasi'}
           </Button>
         </aside>
       </div>

@@ -1,61 +1,22 @@
+name: poli-dokter-revisi
 services:
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: rsi-app
-    working_dir: /var/www/html
-    ports:
-      - "8090:80"
-    volumes:
-      - ./src:/var/www/html
-    environment:
-      APP_ENV: local
-      APP_DEBUG: "true"
-      APP_URL: http://localhost:8090
-      DB_CONNECTION: mysql
-      DB_HOST: db
-      DB_PORT: 3306
-      DB_DATABASE: rsi_outpatient_care
-      DB_USERNAME: rsi_user
-      DB_PASSWORD: rsi_dev_password
-    depends_on:
-      db:
-        condition: service_healthy
-    restart: unless-stopped
-
   db:
     image: mariadb:11.4
-    container_name: rsi-db
     environment:
-      MARIADB_DATABASE: rsi_outpatient_care
-      MARIADB_USER: rsi_user
-      MARIADB_PASSWORD: rsi_dev_password
-      MARIADB_ROOT_PASSWORD: rsi_root_password_change_me
+      MARIADB_DATABASE: rsi_rawat_jalan_revisi
+      MARIADB_USER: rsi_revisi
+      MARIADB_PASSWORD: revisi_local_dev
+      MARIADB_RANDOM_ROOT_PASSWORD: "1"
     ports:
-      - "3308:3306"
+      - "127.0.0.1:3318:3306"
     volumes:
-      - rsi_mariadb_data:/var/lib/mysql
+      - data_revisi:/var/lib/mysql
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 5s
       timeout: 5s
-      retries: 20
-    restart: unless-stopped
-
-  phpmyadmin:
-    image: phpmyadmin:5-apache
-    container_name: rsi-phpmyadmin
-    ports:
-      - "8091:80"
-    environment:
-      PMA_HOST: db
-      PMA_PORT: 3306
-      UPLOAD_LIMIT: 32M
-    depends_on:
-      db:
-        condition: service_healthy
+      retries: 25
     restart: unless-stopped
 
 volumes:
-  rsi_mariadb_data:
+  data_revisi:

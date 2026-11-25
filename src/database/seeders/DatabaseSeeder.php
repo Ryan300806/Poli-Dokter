@@ -10,6 +10,10 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        if (! app()->environment('local', 'testing')) {
+            throw new \RuntimeException('Seeder akun simulasi hanya tersedia untuk lingkungan lokal dan pengujian.');
+        }
+
         $password = Hash::make('password123');
         $now = now();
 

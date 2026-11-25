@@ -23,6 +23,7 @@ class RegistrasiController extends Controller
     {
         $data = $request->validate([
             'nik' => ['required', 'digits:16'],
+            'noKK' => ['required', 'digits:16'],
             'namaLengkap' => ['required', 'string', 'max:100'],
             'tempatLahir' => ['required', 'string', 'max:50'],
             'tanggalLahir' => ['required', 'date', 'before_or_equal:today'],
@@ -40,34 +41,44 @@ class RegistrasiController extends Controller
         }
 
         if (DataPasien::cekNIK($data['nik'])) {
-            return back()->withErrors(['nik' => 'NIK sudah pernah terdaftar. Silakan masuk menggunakan akun yang ada.'])->withInput();
+            return back()->withErrors(['nik' => 'NIK sudah pernah terdaftar. Silakan masuk menggunakan akun yang ada.']);
         }
 
-        DB::transaction(function () use ($data) {
-            $user = User::query()->create([
-                'name' => $data['namaLengkap'],
-                'username' => $data['nik'],
-                'email' => $data['nik'].'@pasien.local',
-                'password' => $data['kataSandi'],
-                'role' => 'pasien',
-                'is_active' => true,
-            ]);
+        try {
+            $idPasien = DB::transaction(function () use ($data) {
+                $user = User::query()->create([
+                    'name' => $data['namaLengkap'],
+                    'username' => $data['nik'],
+                    'email' => $data['nik'].'@pasien.local',
+                    'password' => $data['kataSandi'],
+                    'role' => 'pasien',
+                    'is_active' => true,
+                ]);
 
-            DataPasien::simpanDataPasien([
-                'user_id' => $user->id,
-                'nik' => $data['nik'],
-                'nama_lengkap' => $data['namaLengkap'],
-                'tempat_lahir' => $data['tempatLahir'],
-                'tanggal_lahir' => $data['tanggalLahir'],
-                'alamat' => $data['alamat'],
-                'jenis_kelamin' => $data['jenisKelamin'] === 'perempuan' ? 'P' : 'L',
-                'kontak_darurat' => $data['noKontakDarurat'],
-                'nama_kontak_darurat' => $data['namaKontakDarurat'],
-                'password' => $data['kataSandi'],
-            ]);
-        });
+                DataPasien::simpanDataPasien([
+                    'user_id' => $user->id,
+                    'nik' => $data['nik'],
+                    'no_kk' => $data['noKK'],
+                    'nama_lengkap' => $data['namaLengkap'],
+                    'tempat_lahir' => $data['tempatLahir'],
+                    'tanggal_lahir' => $data['tanggalLahir'],
+                    'alamat' => $data['alamat'],
+                    'jenis_kelamin' => $data['jenisKelamin'] === 'perempuan' ? 'P' : 'L',
+                    'kontak_darurat' => $data['noKontakDarurat'],
+                    'nama_kontak_darurat' => $data['namaKontakDarurat'],
+                    'password' => $data['kataSandi'],
+                ]);
+                return DataPasien::where('user_id', $user->id)->value('id_pasien');
+            });
+        } catch (\Illuminate\Database\UniqueConstraintViolationException $error) {
+            if (User::where('username', $data['nik'])->exists()) {
+                throw ValidationException::withMessages(['nik' => 'NIK sudah terdaftar. Silakan masuk.']);
+            }
+            throw $error;
+        }
 
-        return redirect()->route('login')->with('success', 'Akun pasien berhasil dibuat. Silakan masuk menggunakan NIK Anda.');
+        $rm = 'RM-'.str_pad((string) $idPasien, 6, '0', STR_PAD_LEFT);
+        return redirect()->route('login')->with('success', 'Registrasi berhasil. Nomor rekam medis Anda '.$rm.'. Silakan masuk menggunakan NIK.');
     }
 
     private function verifikasiData(array $dataPasien): bool

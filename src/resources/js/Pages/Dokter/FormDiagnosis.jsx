@@ -7,11 +7,12 @@ import Badge from '../../Components/ui/Badge';
 import { toast } from '../../Components/ui/Toast';
 import { rute } from '../../lib/rute';
 
-export default function FormDiagnosis({ antreanId, pasienServer: pasien }) {
-  const [mulai, setMulai] = useState(false);
-  const [form, setForm] = useState({ diagnosis: '', rencana: '' });
+export default function FormDiagnosis({ antreanId, pasienServer: pasien, diagnosisTersimpan }) {
+  const [mulai, setMulai] = useState(Boolean(diagnosisTersimpan));
+  const [form, setForm] = useState({ diagnosis: diagnosisTersimpan?.nama_diagnosis || '', rencana: diagnosisTersimpan?.rencana_tindakan || '' });
   const [error, setError] = useState('');
-  const [tersimpan, setTersimpan] = useState(false);
+  const tersimpan = Boolean(diagnosisTersimpan);
+  const [sibuk, setSibuk] = useState(false);
 
   function simpanDiagnosis(e) {
     e.preventDefault();
@@ -19,6 +20,8 @@ export default function FormDiagnosis({ antreanId, pasienServer: pasien }) {
       setError('Diagnosis klinis dan rencana tindakan wajib diisi.');
       return;
     }
+    if (tersimpan || sibuk) return;
+    setSibuk(true);
     router.post(`/dokter/diagnosis/${antreanId}`, {
       namaDiagnosis: form.diagnosis.trim(),
       rencanaTindakan: form.rencana.trim(),
@@ -26,9 +29,10 @@ export default function FormDiagnosis({ antreanId, pasienServer: pasien }) {
       preserveScroll: true,
       onSuccess: () => {
         setError('');
-        setTersimpan(true);
+
         toast.success('Diagnosis berhasil disimpan ke rekam medis.');
       },
+      onFinish: () => setSibuk(false),
       onError: (errs) => setError(errs.namaDiagnosis || errs.rencanaTindakan || 'Gagal menyimpan diagnosis.'),
     });
   }
@@ -55,10 +59,10 @@ export default function FormDiagnosis({ antreanId, pasienServer: pasien }) {
         <>
           <header className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-extrabold text-ink">Form Diagnosis</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-ink">Form Diagnosis</h1>
               <p className="mt-1 text-xs text-ink-soft">Pencatatan rekam medis pemeriksaan klinis pasien rawat jalan.</p>
             </div>
-            <Button variant="ghost" icon={ArrowLeft} onClick={() => setMulai(false)}>Kembali</Button>
+            <Button variant="ghost" icon={ArrowLeft} href={rute.dokter.antreanPeriksa}>Kembali</Button>
           </header>
 
           <section className="rounded-2xl border-t-4 border-brand bg-white p-6 shadow-card space-y-4">
@@ -68,8 +72,8 @@ export default function FormDiagnosis({ antreanId, pasienServer: pasien }) {
                 <p className="mt-0.5 text-xs text-ink-muted">NIK: {pasien.nik} • {pasien.umur ?? '—'} Tahun ({pasien.jk}) • Poli: <b>{pasien.poli}</b></p>
               </div>
               <div className="flex gap-2 text-center">
-                <div className="rounded-xl bg-surface-low px-4 py-2"><small className="block text-[9px] uppercase text-ink-muted">ANTREAN</small><b className="text-brand">{pasien.antrean}</b></div>
-                <div className="rounded-xl bg-surface-low px-4 py-2"><small className="block text-[9px] uppercase text-ink-muted">ALERGI</small><b className="text-danger">{pasien.alergi || '—'}</b></div>
+                <div className="rounded-xl bg-surface-low px-4 py-2"><small className="block text-[11px] uppercase text-ink-muted">ANTREAN</small><b className="text-brand">{pasien.antrean}</b></div>
+                <div className="rounded-xl bg-surface-low px-4 py-2"><small className="block text-[11px] uppercase text-ink-muted">ALERGI</small><b className="text-danger">{pasien.alergi || '—'}</b></div>
               </div>
             </div>
 
@@ -83,7 +87,7 @@ export default function FormDiagnosis({ antreanId, pasienServer: pasien }) {
                 return (
                   <div key={v.label} className="flex items-center gap-3 rounded-xl bg-surface-low p-3.5">
                     <span className="flex size-10 items-center justify-center rounded-xl bg-brand text-white"><Icon className="size-5" /></span>
-                    <div><small className="block text-[9px] font-bold text-ink-muted">{v.label}</small><b className="text-sm">{v.val}</b></div>
+                    <div><small className="block text-[11px] font-bold text-ink-muted">{v.label}</small><b className="text-sm">{v.val}</b></div>
                   </div>
                 );
               })}
@@ -99,7 +103,7 @@ export default function FormDiagnosis({ antreanId, pasienServer: pasien }) {
             <label className="block text-xs font-bold">
               Nama Diagnosis Klinis / ICD-10 <span className="text-danger">*</span>
               <input
-                value={form.diagnosis}
+                readOnly={tersimpan} maxLength={255} value={form.diagnosis}
                 onChange={(e) => setForm({ ...form, diagnosis: e.target.value })}
                 placeholder="Contoh: Dispepsia Fungsional / Gastritis Akut (K29.7)"
                 className="mt-1.5 h-11 w-full rounded-xl bg-surface-input px-4 text-xs outline-none focus:ring-2 focus:ring-brand/30"
@@ -111,7 +115,7 @@ export default function FormDiagnosis({ antreanId, pasienServer: pasien }) {
               <textarea
                 rows={4}
                 maxLength={500}
-                value={form.rencana}
+                readOnly={tersimpan} value={form.rencana}
                 onChange={(e) => setForm({ ...form, rencana: e.target.value })}
                 placeholder="Rincian rencana terapi, diet, dan edukasi pasien..."
                 className="mt-1.5 w-full rounded-xl bg-surface-input p-4 text-xs outline-none focus:ring-2 focus:ring-brand/30"
@@ -126,8 +130,8 @@ export default function FormDiagnosis({ antreanId, pasienServer: pasien }) {
                 {tersimpan ? 'Diagnosis tersimpan & status antrean selesai.' : 'Siap disimpan ke Rekam Medis'}
               </span>
               <div className="flex gap-2">
-                <Button type="button" variant="secondary" onClick={() => setForm({ diagnosis: '', rencana: '' })}>Batal</Button>
-                <Button type="submit" icon={Save}>Simpan Diagnosis</Button>
+                {!tersimpan && <Button variant="secondary" href={rute.dokter.antreanPeriksa}>Kembali ke antrean</Button>}
+                {!tersimpan && <Button type="submit" disabled={sibuk} icon={Save}>{sibuk ? 'Menyimpan…' : 'Simpan diagnosis'}</Button>}
                 {tersimpan && (
                   <Button type="button" icon={ArrowRight} onClick={() => router.visit(rute.dokter.formEResep(antreanId))}>
                     Buat E-Resep

@@ -69,6 +69,7 @@ Route::middleware(RoleSession::class.':dokter')->group(function () {
 Route::middleware(RoleSession::class.':apoteker')->group(function () {
     Route::get('/apoteker/notifikasi-eresep', [EResepController::class, 'daftarNotifikasi'])->name('apoteker.notifikasi-eresep');
     Route::get('/apoteker/rincian-eresep/{eresep}', [EResepController::class, 'halamanRincian'])->name('apoteker.rincian-eresep');
+    Route::post('/apoteker/e-resep/{idEResep}/stok', [EResepController::class, 'terimaStok'])->name('apoteker.stok.terima');
     Route::post('/apoteker/e-resep/{idEResep}/status', [EResepController::class, 'updateStatusHttp'])->name('apoteker.eresep.status');
     Route::get('/apoteker/pengiriman-obat/{eresep}', [PengirimanObatController::class, 'halamanPengiriman'])->name('apoteker.pengiriman-obat');
 });

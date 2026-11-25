@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import { ArrowLeft, ArrowRight, Eye, EyeOff, Mars, ShieldCheck, UserPlus, Venus } from 'lucide-react';
+import Brand from '../../Components/ui/Brand';
 import Button from '../../Components/ui/Button';
 import { rute } from '../../lib/rute';
 
 export default function Registrasi({ errors: serverErrors = {} }) {
   const [form, setForm] = useState({
-    nik: '',
+    nik: '', noKK: '',
     namaLengkap: '',
     tempatLahir: '',
     tanggalLahir: '',
@@ -22,6 +23,7 @@ export default function Registrasi({ errors: serverErrors = {} }) {
   const [lihat2, setLihat2] = useState(false);
   const [errors, setErrors] = useState({});
 
+  const [sibuk, setSibuk] = useState(false);
   const merged = { ...serverErrors, ...errors };
 
   function ubah(field, value) {
@@ -33,6 +35,7 @@ export default function Registrasi({ errors: serverErrors = {} }) {
     e.preventDefault();
     const err = {};
     if (!/^\d{16}$/.test(form.nik)) err.nik = 'NIK harus tepat 16 digit angka.';
+    if (!/^\d{16}$/.test(form.noKK)) err.noKK = 'Nomor KK harus 16 digit.';
     if (!form.namaLengkap.trim()) err.namaLengkap = 'Nama lengkap wajib diisi.';
     if (!form.tempatLahir.trim()) err.tempatLahir = 'Tempat lahir wajib diisi.';
     if (!form.tanggalLahir) err.tanggalLahir = 'Tanggal lahir wajib diisi.';
@@ -47,21 +50,19 @@ export default function Registrasi({ errors: serverErrors = {} }) {
     setErrors(err);
     if (Object.keys(err).length > 0) return;
 
-    router.post(rute.registrasi, form);
+    if (sibuk) return;
+    setSibuk(true);
+    router.post(rute.registrasi, form, { onFinish: () => setSibuk(false) });
   }
 
   const inputCls = 'mt-1.5 h-11 w-full rounded-xl border border-line bg-white px-3.5 text-xs text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20';
 
   return (
     <>
-      <Head title="Registrasi Pasien Baru — RS Sehat Medika" />
+      <Head title="Registrasi Pasien Baru — Rumah Sakit Citra Medika" />
       <div className="min-h-screen flex flex-col bg-surface">
-        <header className="flex h-16 items-center justify-between border-b border-line bg-white px-6">
-          <div className="flex items-center gap-3">
-            <span className="flex size-9 items-center justify-center rounded-xl bg-brand text-white font-extrabold text-lg">+</span>
-            <span className="text-sm font-bold text-ink">RS SEHAT MEDIKA</span>
-            <span className="rounded-md bg-brand-light-active px-2 py-0.5 text-[10px] font-bold text-brand-dark">SIM-RS PORTAL</span>
-          </div>
+        <header className="portal-topbar">
+          <Brand />
           <Link href={rute.login} className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-soft hover:text-ink">
             <ArrowLeft className="size-4" /> Kembali ke Login
           </Link>
@@ -84,28 +85,35 @@ export default function Registrasi({ errors: serverErrors = {} }) {
             <form onSubmit={submit} className="mt-6 space-y-5">
               <div>
                 <div className="flex items-center justify-between text-xs font-semibold">
-                  <label>Nomor Induk Kependudukan (NIK) <span className="text-danger">*</span></label>
+                  <label htmlFor="nik">Nomor Induk Kependudukan (NIK) <span className="text-danger">*</span></label>
                   <span className="text-[11px] font-bold text-ink-muted">{form.nik.length}/16</span>
                 </div>
                 <input
                   type="text"
                   maxLength={16}
-                  value={form.nik}
+                  id="nik" value={form.nik}
                   onChange={(e) => ubah('nik', e.target.value.replace(/\D/g, ''))}
                   placeholder="Contoh: 3171012345670001"
                   className={inputCls}
                 />
                 {merged.nik && <p className="mt-1 text-[11px] text-danger">{merged.nik}</p>}
-                <p className="mt-1 flex items-center gap-1 text-[10px] text-brand-dark">
+                <p className="mt-1 flex items-center gap-1 text-[11px] text-brand-dark">
                   <ShieldCheck className="size-3.5" /> Data NIK otomatis divalidasi untuk mencegah duplikasi rekam medis.
                 </p>
               </div>
 
               <div>
-                <label className="text-xs font-semibold">Nama Lengkap (Sesuai KTP) <span className="text-danger">*</span></label>
+                <label htmlFor="noKK" className="field-label">Nomor Kartu Keluarga <span className="text-danger">*</span></label>
+                <input id="noKK" className={inputCls} inputMode="numeric" maxLength={16} required
+                  value={form.noKK} onChange={(e) => ubah('noKK', e.target.value.replace(/\D/g, ''))} />
+                {merged.noKK && <p className="field-error">{merged.noKK}</p>}
+              </div>
+
+              <div>
+                <label htmlFor="namaLengkap" className="text-xs font-semibold">Nama Lengkap (Sesuai KTP) <span className="text-danger">*</span></label>
                 <input
                   type="text"
-                  value={form.namaLengkap}
+                  id="namaLengkap" value={form.namaLengkap}
                   onChange={(e) => ubah('namaLengkap', e.target.value)}
                   placeholder="Masukkan nama lengkap tanpa singkatan gelar"
                   className={inputCls}
@@ -115,10 +123,10 @@ export default function Registrasi({ errors: serverErrors = {} }) {
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="text-xs font-semibold">Tempat Lahir <span className="text-danger">*</span></label>
+                  <label htmlFor="tempatLahir" className="text-xs font-semibold">Tempat Lahir <span className="text-danger">*</span></label>
                   <input
                     type="text"
-                    value={form.tempatLahir}
+                    id="tempatLahir" value={form.tempatLahir}
                     onChange={(e) => ubah('tempatLahir', e.target.value)}
                     placeholder="Kota/Kabupaten lahir"
                     className={inputCls}
@@ -126,11 +134,11 @@ export default function Registrasi({ errors: serverErrors = {} }) {
                   {merged.tempatLahir && <p className="mt-1 text-[11px] text-danger">{merged.tempatLahir}</p>}
                 </div>
                 <div>
-                  <label className="text-xs font-semibold">Tanggal Lahir <span className="text-danger">*</span></label>
+                  <label htmlFor="tanggalLahir" className="text-xs font-semibold">Tanggal Lahir <span className="text-danger">*</span></label>
                   <input
                     type="date"
                     max={new Date().toISOString().slice(0, 10)}
-                    value={form.tanggalLahir}
+                    id="tanggalLahir" value={form.tanggalLahir}
                     onChange={(e) => ubah('tanggalLahir', e.target.value)}
                     className={inputCls}
                   />
@@ -139,10 +147,10 @@ export default function Registrasi({ errors: serverErrors = {} }) {
               </div>
 
               <div>
-                <label className="text-xs font-semibold">Alamat Lengkap Domisili <span className="text-danger">*</span></label>
+                <label htmlFor="alamat" className="text-xs font-semibold">Alamat Lengkap Domisili <span className="text-danger">*</span></label>
                 <textarea
                   rows={3}
-                  value={form.alamat}
+                  id="alamat" value={form.alamat}
                   onChange={(e) => ubah('alamat', e.target.value)}
                   placeholder="Tuliskan nama jalan, RT/RW, kelurahan, kecamatan, dan kota domisili saat ini..."
                   className="mt-1.5 w-full rounded-xl border border-line bg-white p-3.5 text-xs text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
@@ -186,15 +194,15 @@ export default function Registrasi({ errors: serverErrors = {} }) {
               <div className="rounded-2xl bg-brand-light-active p-5">
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-bold text-brand-dark">Kontak Darurat Pasien</p>
-                  <span className="rounded-full bg-danger-light px-2.5 py-0.5 text-[10px] font-bold text-danger">* WAJIB DIISI</span>
+                  <span className="rounded-full bg-danger-light px-2.5 py-0.5 text-[11px] font-bold text-danger">* WAJIB DIISI</span>
                 </div>
                 <p className="mt-1 text-[11px] text-brand-dark/80">Dihubungi untuk konfirmasi tindakan medis mendesak atau perubahan jadwal dokter.</p>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
                   <div>
-                    <label className="text-[11px] font-semibold text-brand-dark">Nama Kontak Darurat <span className="text-danger">*</span></label>
+                    <label htmlFor="namaKontakDarurat" className="text-[11px] font-semibold text-brand-dark">Nama Kontak Darurat <span className="text-danger">*</span></label>
                     <input
                       type="text"
-                      value={form.namaKontakDarurat}
+                      id="namaKontakDarurat" value={form.namaKontakDarurat}
                       onChange={(e) => ubah('namaKontakDarurat', e.target.value)}
                       placeholder="Nama lengkap kerabat/wali"
                       className="mt-1 h-10 w-full rounded-xl bg-white px-3 text-xs text-ink outline-none"
@@ -202,14 +210,14 @@ export default function Registrasi({ errors: serverErrors = {} }) {
                     {merged.namaKontakDarurat && <p className="mt-1 text-[11px] text-danger">{merged.namaKontakDarurat}</p>}
                   </div>
                   <div>
-                    <label className="text-[11px] font-semibold text-brand-dark">Nomor WhatsApp / Telepon Aktif <span className="text-danger">*</span></label>
+                    <label htmlFor="noKontakDarurat" className="text-[11px] font-semibold text-brand-dark">Nomor WhatsApp / Telepon Aktif <span className="text-danger">*</span></label>
                     <div className="mt-1 flex h-10 overflow-hidden rounded-xl bg-white">
-                      <span className="flex items-center bg-surface-mid px-3 text-xs font-bold text-ink-soft">+62</span>
+                      
                       <input
                         type="text"
-                        value={form.noKontakDarurat}
+                        id="noKontakDarurat" value={form.noKontakDarurat}
                         onChange={(e) => ubah('noKontakDarurat', e.target.value)}
-                        placeholder="812-3456-7890"
+                        placeholder="0812 3456 7890"
                         className="w-full px-3 text-xs text-ink outline-none"
                       />
                     </div>
@@ -220,32 +228,32 @@ export default function Registrasi({ errors: serverErrors = {} }) {
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="text-xs font-semibold">Kata Sandi Baru <span className="text-danger">*</span></label>
+                  <label htmlFor="kataSandi" className="text-xs font-semibold">Kata Sandi Baru <span className="text-danger">*</span></label>
                   <div className="relative">
                     <input
                       type={lihat1 ? 'text' : 'password'}
-                      value={form.kataSandi}
+                      id="kataSandi" autoComplete="new-password" value={form.kataSandi}
                       onChange={(e) => ubah('kataSandi', e.target.value)}
                       placeholder="Minimal 8 karakter"
                       className={`${inputCls} pr-10`}
                     />
-                    <button type="button" onClick={() => setLihat1((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted">
+                    <button type="button" aria-label="Tampilkan atau sembunyikan kata sandi" onClick={() => setLihat1((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted">
                       {lihat1 ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                     </button>
                   </div>
                   {merged.kataSandi && <p className="mt-1 text-[11px] text-danger">{merged.kataSandi}</p>}
                 </div>
                 <div>
-                  <label className="text-xs font-semibold">Ulangi Kata Sandi <span className="text-danger">*</span></label>
+                  <label htmlFor="ulangiKataSandi" className="text-xs font-semibold">Ulangi Kata Sandi <span className="text-danger">*</span></label>
                   <div className="relative">
                     <input
                       type={lihat2 ? 'text' : 'password'}
-                      value={form.ulangiKataSandi}
+                      id="ulangiKataSandi" autoComplete="new-password" value={form.ulangiKataSandi}
                       onChange={(e) => ubah('ulangiKataSandi', e.target.value)}
                       placeholder="Ketik ulang kata sandi"
                       className={`${inputCls} pr-10`}
                     />
-                    <button type="button" onClick={() => setLihat2((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted">
+                    <button type="button" aria-label="Tampilkan atau sembunyikan kata sandi" onClick={() => setLihat2((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted">
                       {lihat2 ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                     </button>
                   </div>
@@ -261,12 +269,12 @@ export default function Registrasi({ errors: serverErrors = {} }) {
                   className="mt-0.5 size-4 rounded accent-brand"
                 />
                 <span>
-                  Saya menyatakan bahwa data yang saya isikan adalah benar dan dapat dipertanggungjawabkan untuk kebutuhan administrasi pelayanan rekam medis <b>RS Sehat Medika</b>.
+                  Saya menyatakan bahwa data yang saya isikan adalah benar dan dapat dipertanggungjawabkan untuk kebutuhan administrasi pelayanan rekam medis <b>Rumah Sakit Citra Medika</b>.
                 </span>
               </label>
               {merged.setuju && <p className="text-[11px] text-danger">{merged.setuju}</p>}
 
-              <Button type="submit" icon={ArrowRight} className="w-full h-12 text-xs uppercase tracking-wider">
+              <Button type="submit" disabled={sibuk} icon={ArrowRight} className="w-full h-12 text-xs uppercase tracking-wider">
                 Daftar Akun Pasien
               </Button>
             </form>

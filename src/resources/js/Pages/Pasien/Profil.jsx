@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { router, usePage } from '@inertiajs/react';
-import { AlertCircle, BadgeCheck, CalendarDays, Contact, Lock, MapPin, Phone, ShieldCheck, UserCog, UserRound } from 'lucide-react';
+import { CalendarDays, Contact, Lock, MapPin, Phone, ShieldCheck, UserCog, UserRound } from 'lucide-react';
 import AppLayout from '../../Layouts/AppLayout';
 import Button from '../../Components/ui/Button';
 import Badge from '../../Components/ui/Badge';
@@ -18,13 +18,13 @@ function Baris({ label, value }) {
   );
 }
 
-export default function Profil({ pasien = {}, riwayat = [], infoPembaruan = {} }) {
+export default function Profil({ pasien = {}, riwayat = [], infoPembaruan = {}, konfirmasi = false }) {
   const { props } = usePage();
   const flash = props.flash || {};
   const updateResult = flash.profileUpdateResult || null;
 
-  const [modalBuka, setModalBuka] = useState(false);
-  const [sudahTutupHasil, setSudahTutupHasil] = useState(false);
+  const [sibuk, setSibuk] = useState(false);
+  const [modalBuka, setModalBuka] = useState(konfirmasi);
   const [form, setForm] = useState({
     nama_lengkap: pasien.nama_lengkap ?? '',
     tempat_lahir: pasien.tempat_lahir ?? '',
@@ -51,29 +51,20 @@ export default function Profil({ pasien = {}, riwayat = [], infoPembaruan = {} }
 
   function submitUpdate(e) {
     e.preventDefault();
-    setSudahTutupHasil(false);
-    router.put(rute.pasien.profil, form, { preserveScroll: true });
-  }
-
-  function tutupModal() {
-    setModalBuka(false);
-    if (updateResult?.status === 'success') {
-      setSudahTutupHasil(true);
-    }
+    if (sibuk) return;
+    setSibuk(true);
+    router.put(rute.pasien.profil, { ...form, lanjutReservasi: konfirmasi }, { preserveScroll: true, onFinish: () => setSibuk(false), onSuccess: () => setModalBuka(false) });
   }
 
   const rmCode = `RM-${String(pasien.id_pasien ?? 0).padStart(6, '0')}`;
-  const isSuccess = updateResult?.status === 'success' && !sudahTutupHasil;
-  const isBlocked = !isSuccess && (updateResult?.status === 'blocked' || !infoPembaruan.canUpdate);
+  const isBlocked = updateResult?.status === 'blocked' || infoPembaruan.canUpdate === false;
 
   return (
-    <AppLayout role="pasien" title="Profile Pasien">
+    <AppLayout role="pasien" title="Profil Pasien">
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-brand">MODUL DATA PASIEN TERPUSAT</p>
           <div className="mt-1 flex flex-wrap items-center gap-3">
-            <h1 className="text-3xl font-extrabold text-ink">Profil Pasien Terintegrasi</h1>
-            <Badge tone="success"><BadgeCheck className="size-3.5" /> STATUS: TERVERIFIKASI</Badge>
+            <h1 className="text-2xl sm:text-3xl font-bold text-ink">Profil Pasien Terintegrasi</h1>
           </div>
         </div>
         <Button icon={UserCog} onClick={() => setModalBuka(true)}>Mutakhirkan Data Pasien</Button>
@@ -98,7 +89,7 @@ export default function Profil({ pasien = {}, riwayat = [], infoPembaruan = {} }
                 <UserRound className="size-8" />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-bold uppercase text-ink-muted">NAMA LENGKAP PASIEN</p>
+                <p className="text-[11px] font-bold uppercase text-ink-muted">NAMA LENGKAP PASIEN</p>
                 <p className="text-lg font-extrabold text-ink truncate">{pasien.nama_lengkap}</p>
                 <p className="mt-1 text-xs font-semibold text-ink-soft">NIK: {pasien.nik}</p>
               </div>
@@ -111,6 +102,7 @@ export default function Profil({ pasien = {}, riwayat = [], infoPembaruan = {} }
                 label="Golongan Darah"
                 value={<span className="rounded bg-danger-light px-2 py-0.5 text-xs font-bold text-danger">{pasien.golongan_darah || 'Belum tercatat'}</span>}
               />
+              <Baris label="Nomor Kartu Keluarga" value={pasien.no_kk || 'Belum tercatat'} />
               <Baris label="Nomor Rekam Medis" value={rmCode} />
             </div>
 
@@ -128,11 +120,10 @@ export default function Profil({ pasien = {}, riwayat = [], infoPembaruan = {} }
               <h2 className="flex items-center gap-2 text-sm font-bold text-ink">
                 <MapPin className="size-4 text-brand" /> Domisili &amp; Kontak Pasien
               </h2>
-              <Badge tone="success">DATA TERVERIFIKASI</Badge>
             </div>
             <div className="p-5 space-y-4">
               <div>
-                <p className="text-[10px] font-bold uppercase text-ink-muted">ALAMAT LENGKAP KTP &amp; TINGGAL</p>
+                <p className="text-[11px] font-bold uppercase text-ink-muted">ALAMAT LENGKAP KTP &amp; TINGGAL</p>
                 <p className="mt-1.5 rounded-xl bg-surface-low p-4 text-xs leading-relaxed text-ink">{pasien.alamat}</p>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
@@ -155,7 +146,7 @@ export default function Profil({ pasien = {}, riwayat = [], infoPembaruan = {} }
               <h2 className="flex items-center gap-2 text-sm font-bold text-ink">
                 <CalendarDays className="size-4 text-brand" /> Riwayat Kunjungan Poliklinik
               </h2>
-              <Badge tone="neutral">{riwayat.length} Kunjungan Selesai</Badge>
+              <Badge tone="neutral">{riwayat.length} kunjungan terakhir</Badge>
             </div>
             {riwayat.length > 0 ? (
               <div className="divide-y divide-line">
@@ -163,7 +154,7 @@ export default function Profil({ pasien = {}, riwayat = [], infoPembaruan = {} }
                   <div key={r.id_reservasi} className="grid items-center gap-2 px-5 py-3.5 sm:grid-cols-[110px_1fr_1fr_auto] text-xs">
                     <div>
                       <b className="text-ink">{fmtDate(r.tanggal)}</b>
-                      <p className="text-[10px] text-ink-muted">REG-{r.id_reservasi}</p>
+                      <p className="text-[11px] text-ink-muted">REG-{r.id_reservasi}</p>
                     </div>
                     <div>
                       <p className="font-bold text-ink">{r.nama_poli}</p>
@@ -184,46 +175,24 @@ export default function Profil({ pasien = {}, riwayat = [], infoPembaruan = {} }
       {/* Modal Pemutakhiran Data Pasien (_p3–_p13) */}
       <Modal
         open={modalBuka}
-        onClose={tutupModal}
+        onClose={() => setModalBuka(false)}
         title="Pemutakhiran Data Pasien"
         icon={UserCog}
         maxWidth="max-w-2xl"
       >
-        {isSuccess && (
-          <div className="rounded-2xl bg-brand-light-active p-5 text-brand-dark">
-            <p className="flex items-center gap-2 text-xs font-extrabold"><BadgeCheck className="size-4" /> UPDATE BERHASIL !</p>
-            <p className="mt-2 text-xs leading-relaxed">
-              Data profil pasien berhasil dimutakhirkan. Pembaruan mandiri berikutnya dapat dilakukan setelah 365 hari.
-            </p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-xl bg-white p-3 text-xs">
-                <p className="text-[10px] font-bold uppercase text-ink-muted">PEMBARUAN TERAKHIR</p>
-                <p className="mt-1 font-bold text-ink">{updateResult.lastUpdatedFormatted} <span className="text-brand">(Baru saja)</span></p>
-              </div>
-              <div className="rounded-xl bg-white p-3 text-xs">
-                <p className="text-[10px] font-bold uppercase text-ink-muted">INTERVAL BERJALAN</p>
-                <p className="mt-1 font-bold text-brand">0 Hari <span className="text-ink-muted">(Berhasil diperbarui)</span></p>
-              </div>
-            </div>
-            <div className="mt-4 flex justify-end">
-              <Button variant="secondary" onClick={tutupModal}>Tutup</Button>
-            </div>
-          </div>
-        )}
-
         {isBlocked && (
-          <div className="rounded-2xl bg-danger-light p-5 text-danger">
-            <p className="flex items-center gap-2 text-xs font-extrabold"><AlertCircle className="size-4" /> UPDATE DATA GAGAL</p>
+          <div className="rounded-2xl bg-surface-low p-5 text-ink">
+            <p className="flex items-center gap-2 text-xs font-extrabold"><Lock className="size-4" /> Jadwal pembaruan profil</p>
             <p className="mt-2 text-xs leading-relaxed">
-              Sistem mendeteksi bahwa data profil pasien telah dimutakhirkan dalam kurun waktu kurang dari 1 (satu) tahun. Pemutakhiran mandiri hanya dapat dilakukan satu kali setiap 365 hari.
+              Profil dapat diperbarui kembali pada {fmtDate(infoPembaruan.nextAvailableAt || updateResult?.nextAvailableAt)}.
             </p>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <div className="rounded-xl bg-white p-3 text-xs text-ink">
-                <p className="text-[10px] font-bold uppercase text-ink-muted">PEMBARUAN TERAKHIR</p>
+                <p className="text-[11px] font-bold uppercase text-ink-muted">PEMBARUAN TERAKHIR</p>
                 <p className="mt-1 font-bold">{infoPembaruan.lastUpdatedFormatted || updateResult?.lastUpdatedFormatted}</p>
               </div>
               <div className="rounded-xl bg-white p-3 text-xs text-ink">
-                <p className="text-[10px] font-bold uppercase text-ink-muted">INTERVAL BERJALAN</p>
+                <p className="text-[11px] font-bold uppercase text-ink-muted">INTERVAL BERJALAN</p>
                 <p className="mt-1 font-bold text-danger">{infoPembaruan.daysElapsed ?? updateResult?.daysElapsed ?? 0} Hari <span className="text-ink-muted">(&lt; 365 Hari)</span></p>
               </div>
             </div>
@@ -233,7 +202,7 @@ export default function Profil({ pasien = {}, riwayat = [], infoPembaruan = {} }
           </div>
         )}
 
-        {!isSuccess && !isBlocked && (
+        {!isBlocked && (
           <form onSubmit={submitUpdate} className="space-y-4">
             <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-ink-soft">
               <Lock className="size-3.5" /> FORMULIR IDENTITAS
@@ -283,12 +252,10 @@ export default function Profil({ pasien = {}, riwayat = [], infoPembaruan = {} }
               <textarea rows={2} value={form.alamat} onChange={(e) => setForm({ ...form, alamat: e.target.value })} className="mt-1 w-full rounded-xl bg-surface-input p-3 text-xs outline-none focus:ring-2 focus:ring-brand/30" />
             </label>
             <div className="flex items-center justify-between border-t border-line pt-4">
-              <span className="flex items-center gap-1.5 text-[11px] text-brand-dark">
-                <ShieldCheck className="size-4" /> Sesi Keamanan: Aktif
-              </span>
+              {Object.keys(props.errors || {}).length > 0 && <p role="alert" className="field-error">{Object.values(props.errors)[0]}</p>}
               <div className="flex gap-2">
                 <Button variant="secondary" onClick={() => setModalBuka(false)}>Tutup</Button>
-                <Button type="submit" icon={Lock}>Mutakhirkan Data Pasien</Button>
+                <Button type="submit" disabled={sibuk} icon={Lock}>Mutakhirkan Data Pasien</Button>
               </div>
             </div>
           </form>

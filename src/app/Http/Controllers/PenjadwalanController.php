@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\DataJadwalDokter;
 use App\Models\DataReservasi;
+use App\Models\DataPasien;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,11 +16,6 @@ use Inertia\Response;
 /** Penjadwalan poli pasien dan manajemen jadwal praktek dokter sesuai Class Diagram. */
 class PenjadwalanController extends Controller
 {
-    private function nomorAntreanBerikutnya(): int
-    {
-        return ((int) DB::table('reservasi')->lockForUpdate()->max('nomor_antrean')) + 1;
-    }
-
     private function reservasiPasien(int $idPasien)
     {
         return DB::table('reservasi as r')
@@ -36,14 +32,35 @@ class PenjadwalanController extends Controller
             );
     }
 
-    public function ambilJadwalPoli(Request $request): Response
+    private function pastikanWaktuKosong(int $idPasien, object $slot, ?int $kecuali = null): void
     {
+        $mulai = Carbon::parse($slot->tanggal.' '.$slot->jam);
+        $ada = DB::table('reservasi as r')->join('slot_jadwal as s', 'r.id_slot', '=', 's.id_slot')
+            ->where('r.id_pasien', $idPasien)->where('r.tanggal', $slot->tanggal)
+            ->where('r.status_reservasi', '!=', 'dibatalkan')
+            ->when($kecuali, fn ($q) => $q->where('r.id_reservasi', '!=', $kecuali))
+            ->when($mulai->hour > 0, fn ($q) => $q->where('s.jam', '>', $mulai->copy()->subHour()->format('H:i:s')))
+            ->when($mulai->hour < 23, fn ($q) => $q->where('s.jam', '<', $mulai->copy()->addHour()->format('H:i:s')))
+            ->exists();
+        if ($ada) {
+            throw ValidationException::withMessages(['id_slot' => 'Waktu ini bentrok dengan reservasi Anda. Pilih sesi lain.']);
+        }
+    }
+
+    public function ambilJadwalPoli(Request $request): Response|RedirectResponse
+    {
+        if (DataPasien::perluKonfirmasiProfil((int) $request->session()->get('pasien_id'))) {
+            return redirect()->route('pasien.profil', ['konfirmasi' => 1])->with('info', 'Sudah satu tahun sejak kunjungan terakhir. Konfirmasi data kontak sebelum memesan jadwal.');
+        }
+        $request->validate(['tanggal' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:today']]);
         $idPoli = $request->integer('poli') ?: null;
+        $tanggal = $request->input('tanggal') ?: today()->toDateString();
 
         return Inertia::render('Pasien/PenjadwalanPoli', [
-            'poli' => DB::table('poli')->orderBy('nama_poli')->get(),
-            'dokter' => DB::table('dokter')->when($idPoli, fn ($q) => $q->where('id_poli', $idPoli))->orderBy('nama_dokter')->get(),
-            'slots' => DataJadwalDokter::getJadwalTersedia($idPoli),
+            'poli' => fn () => DB::table('poli')->orderBy('nama_poli')->get(),
+            'dokter' => fn () => DB::table('dokter')->when($idPoli, fn ($q) => $q->where('id_poli', $idPoli))->orderBy('nama_dokter')->get(['id_dokter','nama_dokter','id_poli']),
+            'slots' => fn () => DataJadwalDokter::getJadwalTersedia($idPoli, $tanggal),
+            'tanggal' => $tanggal,
             'poliTerpilih' => $idPoli,
         ]);
     }
@@ -54,21 +71,18 @@ class PenjadwalanController extends Controller
         $idPasien = (int) $request->session()->get('pasien_id');
 
         $booking = DB::transaction(function () use ($data, $idPasien) {
+            DB::table('pasien')->where('id_pasien', $idPasien)->lockForUpdate()->firstOrFail();
+            if (DataPasien::perluKonfirmasiProfil($idPasien)) {
+                throw ValidationException::withMessages(['id_slot' => 'Konfirmasi data kontak pada halaman profil sebelum melanjutkan.']);
+            }
             $slot = DB::table('slot_jadwal')->where('id_slot', $data['id_slot'])->lockForUpdate()->first();
-            if (! $slot || DataJadwalDokter::cekKetersediaanSlot((int) $slot->id_slot, $slot->tanggal) !== 'Tersedia' || $slot->tanggal < today()->toDateString()) {
+            if (! $slot || $slot->status_slot !== 'tersedia' || $slot->sisa_kuota < 1 || ! Carbon::parse($slot->tanggal.' '.$slot->jam)->isFuture()) {
                 throw ValidationException::withMessages(['id_slot' => 'Kuota jadwal sudah penuh atau tidak tersedia.']);
             }
 
-            $sudahAda = DB::table('reservasi')
-                ->where('id_pasien', $idPasien)
-                ->where('id_slot', $slot->id_slot)
-                ->whereNotIn('status_reservasi', ['dibatalkan'])
-                ->exists();
-            if ($sudahAda) {
-                throw ValidationException::withMessages(['id_slot' => 'Anda sudah memiliki reservasi pada slot jadwal ini.']);
-            }
+            $this->pastikanWaktuKosong($idPasien, $slot);
 
-            $nomor = $this->nomorAntreanBerikutnya();
+            $nomor = DataReservasi::nomorAntreanBerikutnya((int) $slot->id_slot);
             $reservasi = DataReservasi::simpanReservasi([
                 'id_pasien' => $idPasien,
                 'id_dokter' => $slot->id_dokter,
@@ -102,18 +116,30 @@ class PenjadwalanController extends Controller
                 'tanggal' => $slot->tanggal,
                 'jam' => substr((string) $slot->jam, 0, 5),
             ];
-        });
+        }, 3);
 
         return redirect()->route('pasien.riwayat-reservasi')
             ->with('success', 'Reservasi berhasil dibuat.')
             ->with('bookingSuccess', $booking);
     }
 
+    private function opsiPengganti(Request $request): array
+    {
+        $item = DataReservasi::query()->whereKey($request->integer('reservasi_ubah'))
+            ->where('id_pasien', (int) $request->session()->get('pasien_id'))
+            ->whereIn('status_reservasi', ['aktif', 'menunggu', 'dikonfirmasi'])->first(['id_dokter', 'id_slot']);
+        if (! $item) {
+            return [];
+        }
+        $opsi = DataJadwalDokter::getJadwalTersedia(idDokter: (int) $item->id_dokter);
+        return array_values(array_filter($opsi, fn ($slot) => $slot['sisa_kuota'] > 0 && (int) $slot['id_slot'] !== (int) $item->id_slot));
+    }
+
     public function ambilReservasiAktif(Request $request): Response
     {
         $tab = $request->string('status')->toString() ?: 'aktif';
         $map = ['aktif' => ['aktif', 'menunggu', 'dikonfirmasi'], 'selesai' => ['selesai'], 'dibatalkan' => ['dibatalkan']];
-        $items = $this->reservasiPasien((int) $request->session()->get('pasien_id'))
+        $items = fn () => $this->reservasiPasien((int) $request->session()->get('pasien_id'))
             ->whereIn('r.status_reservasi', $map[$tab] ?? $map['aktif'])
             ->orderByDesc('r.tanggal')
             ->orderByDesc('s.jam')
@@ -127,19 +153,28 @@ class PenjadwalanController extends Controller
         return Inertia::render('Pasien/RiwayatReservasi', [
             'reservasi' => $items,
             'tab' => array_key_exists($tab, $map) ? $tab : 'aktif',
-            'slots' => array_values(array_filter(DataJadwalDokter::getJadwalTersedia(), fn ($s) => $s['sisa_kuota'] > 0)),
+            'slots' => Inertia::optional(fn () => $this->opsiPengganti($request)),
         ]);
     }
 
     public function ambilDetailReservasi(Request $request, int $idReservasi): Response
     {
         $item = $this->reservasiPasien((int) $request->session()->get('pasien_id'))->where('r.id_reservasi', $idReservasi)->firstOrFail();
+        $item->kode_tiket = 'SEC-'.strtoupper(substr(hash_hmac('sha256', $item->id_reservasi.':'.$item->id_slot, config('app.key')), 0, 8));
 
         return Inertia::render('Pasien/RiwayatReservasi', [
             'reservasi' => [$item],
-            'tab' => 'aktif',
-            'slots' => DataJadwalDokter::getJadwalTersedia(),
+            'tab' => in_array($item->status_reservasi, ['selesai', 'dibatalkan'], true) ? $item->status_reservasi : 'aktif',
+            'slots' => Inertia::optional(fn () => $this->opsiPengganti($request)),
         ]);
+    }
+
+    private function pastikanBelumDilayani(int $idReservasi, string $field): void
+    {
+        $antrean = DB::table('antrean')->where('id_reservasi', $idReservasi)->lockForUpdate()->first(['status_antrean']);
+        if ($antrean && $antrean->status_antrean !== 'menunggu') {
+            throw ValidationException::withMessages([$field => 'Kunjungan sudah dilayani. Reservasi ini tidak dapat diubah atau dibatalkan.']);
+        }
     }
 
     public function ubahJadwal(Request $request, int $idReservasi): RedirectResponse
@@ -147,23 +182,32 @@ class PenjadwalanController extends Controller
         $data = $request->validate(['id_slot' => ['required', 'integer', 'exists:slot_jadwal,id_slot']]);
         DB::transaction(function () use ($request, $idReservasi, $data) {
             $idPasien = (int) $request->session()->get('pasien_id');
+            DB::table('pasien')->where('id_pasien', $idPasien)->lockForUpdate()->firstOrFail();
             $item = DB::table('reservasi')->where('id_reservasi', $idReservasi)->where('id_pasien', $idPasien)->lockForUpdate()->first();
             if (! $item || ! in_array($item->status_reservasi, ['aktif', 'menunggu', 'dikonfirmasi'], true)) {
                 abort(404);
             }
 
+            $this->pastikanBelumDilayani($idReservasi, 'id_slot');
             $old = DB::table('slot_jadwal')->where('id_slot', $item->id_slot)->first();
             if (now()->addHours(2)->greaterThan(Carbon::parse($item->tanggal.' '.$old->jam))) {
                 throw ValidationException::withMessages(['id_slot' => 'Perubahan jadwal hanya dapat dilakukan minimal 2 jam sebelum kunjungan.']);
             }
 
             $new = DB::table('slot_jadwal')->where('id_slot', $data['id_slot'])->lockForUpdate()->first();
-            if (! $new || $new->status_slot !== 'tersedia' || $new->sisa_kuota < 1 || $new->tanggal < today()->toDateString()) {
+            if ((int) $data['id_slot'] === (int) $item->id_slot) {
+                throw ValidationException::withMessages(['id_slot' => 'Pilih slot yang berbeda dari jadwal sekarang.']);
+            }
+            if (! $new || $new->status_slot !== 'tersedia' || $new->sisa_kuota < 1 || ! Carbon::parse($new->tanggal.' '.$new->jam)->isFuture()) {
                 throw ValidationException::withMessages(['id_slot' => 'Jadwal pengganti tidak tersedia atau kuota sudah penuh.']);
             }
 
+            if ((int) $new->id_dokter !== (int) $item->id_dokter) {
+                throw ValidationException::withMessages(['id_slot' => 'Pilih slot pengganti dari dokter yang sama.']);
+            }
+            $this->pastikanWaktuKosong($idPasien, $new, $idReservasi);
             DataJadwalDokter::bebaskanSlotLama((int) $old->id_slot);
-            $nomor = $this->nomorAntreanBerikutnya();
+            $nomor = DataReservasi::nomorAntreanBerikutnya((int) $new->id_slot);
             DataReservasi::updateReservasi($idReservasi, [
                 'id_slot' => $new->id_slot,
                 'id_dokter' => $new->id_dokter,
@@ -176,7 +220,7 @@ class PenjadwalanController extends Controller
             }
 
             DB::table('antrean')->where('id_reservasi', $idReservasi)->update(['tanggal_antrean' => $new->tanggal, 'status_antrean' => 'menunggu']);
-        });
+        }, 3);
 
         return back()->with('success', 'Jadwal kunjungan berhasil diubah.');
     }
@@ -190,6 +234,7 @@ class PenjadwalanController extends Controller
                 abort(404);
             }
 
+            $this->pastikanBelumDilayani($idReservasi, 'alasan');
             $slot = DB::table('slot_jadwal')->where('id_slot', $item->id_slot)->first();
             if (now()->addHours(2)->greaterThan(Carbon::parse($item->tanggal.' '.$slot->jam))) {
                 throw ValidationException::withMessages(['alasan' => 'Pembatalan hanya dapat dilakukan minimal 2 jam sebelum kunjungan.']);
@@ -201,7 +246,7 @@ class PenjadwalanController extends Controller
             ]);
             DataJadwalDokter::bebaskanSlotLama((int) $slot->id_slot);
             DB::table('antrean')->where('id_reservasi', $idReservasi)->update(['status_antrean' => 'dibatalkan']);
-        });
+        }, 3);
 
         return back()->with('success', 'Reservasi berhasil dibatalkan.');
     }
@@ -241,9 +286,12 @@ class PenjadwalanController extends Controller
             'kuota' => ['required', 'integer', 'min:1', 'max:200'],
         ]);
 
-        if (! DataJadwalDokter::tambahSlot($idDokter, $data['tanggal'], $data['jam'], (int) $data['kuota'])) {
-            throw ValidationException::withMessages(['jam' => 'Slot waktu tersebut bentrok dengan jadwal praktek yang sudah ada.']);
-        }
+        DB::transaction(function () use ($idDokter, $data) {
+            DB::table('dokter')->where('id_dokter', $idDokter)->lockForUpdate()->firstOrFail();
+            if (! DataJadwalDokter::tambahSlot($idDokter, $data['tanggal'], $data['jam'], (int) $data['kuota'])) {
+                throw ValidationException::withMessages(['jam' => 'Slot waktu tersebut bentrok dengan jadwal praktek yang sudah ada.']);
+            }
+        }, 3);
 
         return back()->with('success', 'Jadwal berhasil ditambahkan.');
     }
@@ -258,25 +306,28 @@ class PenjadwalanController extends Controller
             'status_slot' => ['sometimes', 'in:tersedia,nonaktif'],
         ]);
 
-        $slot = DataJadwalDokter::query()->whereKey($idSlot)->where('id_dokter', $idDokter)->firstOrFail();
-        $memilikiReservasi = DB::table('reservasi')->where('id_slot', $idSlot)->whereNotIn('status_reservasi', ['dibatalkan'])->exists();
-        if ($memilikiReservasi && (isset($data['tanggal']) || isset($data['jam']))) {
-            throw ValidationException::withMessages(['tanggal' => 'Tanggal atau jam slot tidak dapat diubah saat masih memiliki reservasi aktif.']);
-        }
-
-        if (DataJadwalDokter::cekBentrokJadwal($idDokter, $data['tanggal'] ?? $slot->tanggal, $data['jam'] ?? substr($slot->jam, 0, 5), $idSlot)) {
-            throw ValidationException::withMessages(['jam' => 'Jadwal dokter bentrok dengan slot lain.']);
-        }
-
-        if (isset($data['kuota'])) {
-            $terisi = $slot->kuota - $slot->sisa_kuota;
-            if ($data['kuota'] < $terisi) {
-                throw ValidationException::withMessages(['kuota' => 'Kuota tidak boleh lebih kecil dari reservasi yang sudah ada.']);
+        DB::transaction(function () use ($idDokter, $idSlot, $data) {
+            DB::table('dokter')->where('id_dokter', $idDokter)->lockForUpdate()->firstOrFail();
+            $slot = DataJadwalDokter::query()->whereKey($idSlot)->where('id_dokter', $idDokter)->lockForUpdate()->firstOrFail();
+            $memilikiReservasi = DB::table('reservasi')->where('id_slot', $idSlot)->whereNotIn('status_reservasi', ['dibatalkan'])->exists();
+            if ($memilikiReservasi && (($data['tanggal'] ?? $slot->tanggal) !== $slot->tanggal || ($data['jam'] ?? substr($slot->jam, 0, 5)) !== substr($slot->jam, 0, 5))) {
+                throw ValidationException::withMessages(['tanggal' => 'Tanggal atau jam slot tidak dapat diubah saat masih memiliki reservasi aktif.']);
             }
-            $data['sisa_kuota'] = $data['kuota'] - $terisi;
-        }
 
-        abort_unless(DataJadwalDokter::updateSlot($idSlot, $data), 404);
+            if (DataJadwalDokter::cekBentrokJadwal($idDokter, $data['tanggal'] ?? $slot->tanggal, $data['jam'] ?? substr($slot->jam, 0, 5), $idSlot)) {
+                throw ValidationException::withMessages(['jam' => 'Jadwal dokter bentrok dengan slot lain.']);
+            }
+
+            if (isset($data['kuota'])) {
+                $terisi = $slot->kuota - $slot->sisa_kuota;
+                if ($data['kuota'] < $terisi) {
+                    throw ValidationException::withMessages(['kuota' => 'Kuota tidak boleh lebih kecil dari reservasi yang sudah ada.']);
+                }
+                $data['sisa_kuota'] = $data['kuota'] - $terisi;
+            }
+
+            $slot->fill($data)->save();
+        }, 3);
 
         return back()->with('success', 'Slot jadwal berhasil diperbarui.');
     }
@@ -284,10 +335,13 @@ class PenjadwalanController extends Controller
     public function hapusSlot(Request $request, int $idSlot): RedirectResponse
     {
         $idDokter = (int) $request->session()->get('dokter_id');
-        DataJadwalDokter::query()->whereKey($idSlot)->where('id_dokter', $idDokter)->firstOrFail();
-
-        if (! DataJadwalDokter::deleteSlot($idSlot)) {
-            return back()->withErrors(['slot' => 'Slot tidak dapat dihapus karena sudah memiliki riwayat reservasi.']);
+        $terhapus = DB::transaction(function () use ($idDokter, $idSlot) {
+            DB::table('dokter')->where('id_dokter', $idDokter)->lockForUpdate()->firstOrFail();
+            DataJadwalDokter::whereKey($idSlot)->where('id_dokter', $idDokter)->lockForUpdate()->firstOrFail();
+            return DataJadwalDokter::deleteSlot($idSlot);
+        }, 3);
+        if (! $terhapus) {
+            return back()->withErrors(['slot' => 'Slot ini memiliki riwayat reservasi dan tidak dapat dihapus.']);
         }
 
         return back()->with('success', 'Slot jadwal berhasil dihapus.');
