@@ -25,6 +25,7 @@ export default function FormEResep({ antreanId, pasienServer, idDiagnosis, obatS
 
   const [obat, setObat] = useState(() => mapDaftarObat(eresepServer?.daftar_obat));
   const [error, setError] = useState('');
+  const [sibuk, setSibuk] = useState(false);
 
   useEffect(() => {
     if (eresepServer?.daftar_obat) {
@@ -49,7 +50,7 @@ export default function FormEResep({ antreanId, pasienServer, idDiagnosis, obatS
 
   function kirimResep(e) {
     e.preventDefault();
-    if (!dapatDiedit) return;
+    if (!dapatDiedit || sibuk) return;
 
     if (!obat.length || obat.some((i) => !i.nama.trim() || !i.dosis.trim() || !i.satuan.trim() || !i.aturan.trim())) {
       setError('Lengkapi nama obat, dosis, jumlah, dan aturan pakai pada setiap baris.');
@@ -59,7 +60,7 @@ export default function FormEResep({ antreanId, pasienServer, idDiagnosis, obatS
     const daftarObat = obat.map((i) => ({
       id_obat: i.id_obat ?? obatServer.find((o) => o.nama_obat.toLowerCase() === i.nama.trim().toLowerCase())?.id_obat,
       dosis: i.dosis.trim(),
-      jumlah_obat: Number.parseInt(i.satuan, 10),
+      jumlah_obat: Number(i.satuan),
       aturan_pakai: i.aturan.trim(),
     }));
 
@@ -68,11 +69,13 @@ export default function FormEResep({ antreanId, pasienServer, idDiagnosis, obatS
       return;
     }
 
+    setSibuk(true);
     if (modeEdit) {
-      router.put(`/dokter/e-resep/${eresepServer.id_e_resep}`, { daftar_obat: daftarObat }, {
+      router.put(`/dokter/e-resep/${eresepServer.id_e_resep}`, { daftar_obat: daftarObat, versi: eresepServer.versi }, {
         preserveScroll: true,
         onSuccess: () => { setError(''); toast.success('E-Resep berhasil diperbarui & dikirim ulang.'); },
-        onError: (errs) => setError(errs.eresep || errs.daftar_obat || 'Gagal memperbarui E-Resep.'),
+        onFinish: () => setSibuk(false),
+        onError: (errs) => setError(Object.values(errs)[0] || 'Gagal memperbarui E-Resep.'),
       });
     } else {
       router.post('/dokter/e-resep', {
@@ -80,7 +83,8 @@ export default function FormEResep({ antreanId, pasienServer, idDiagnosis, obatS
         id_diagnosis: idDiagnosis,
         daftar_obat: daftarObat,
       }, {
-        onError: (errs) => setError(errs.eresep || errs.daftar_obat || 'Gagal mengirim E-Resep.'),
+        onFinish: () => setSibuk(false),
+        onError: (errs) => setError(Object.values(errs)[0] || 'Gagal mengirim E-Resep.'),
       });
     }
   }
@@ -89,12 +93,12 @@ export default function FormEResep({ antreanId, pasienServer, idDiagnosis, obatS
     <AppLayout role="dokter" title="Formulir E-Resep Pasien">
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-brand">PELAYANAN RAWAT JALAN &gt; INSTALASI FARMASI &gt; FORMULIR E-RESEP</p>
-          <h1 className="mt-1 text-3xl font-extrabold text-ink">Formulir E-Resep Pasien</h1>
+          <p className="text-[11px] font-bold uppercase tracking-wider text-brand">PELAYANAN RAWAT JALAN &gt; INSTALASI FARMASI &gt; FORMULIR E-RESEP</p>
+          <h1 className="mt-1 text-2xl sm:text-3xl font-bold text-ink">Formulir E-Resep Pasien</h1>
           <p className="mt-1 text-xs text-ink-soft">Pemberian resep obat elektronik terhubung langsung dengan instalasi farmasi.</p>
         </div>
         <div className="rounded-2xl bg-white px-4 py-2.5 text-right shadow-card">
-          <small className="block text-[9px] font-bold uppercase text-ink-muted">ID ANTREAN</small>
+          <small className="block text-[11px] font-bold uppercase text-ink-muted">ID ANTREAN</small>
           <b className="text-sm text-brand">#{antreanId}</b>
         </div>
       </header>
@@ -138,7 +142,7 @@ export default function FormEResep({ antreanId, pasienServer, idDiagnosis, obatS
               ['DOKTER PEMERIKSA', pasienServer.dokter],
             ].map(([label, val]) => (
               <div key={label} className="rounded-xl bg-surface-low p-3">
-                <small className="block text-[9px] font-bold uppercase text-ink-muted">{label}</small>
+                <small className="block text-[11px] font-bold uppercase text-ink-muted">{label}</small>
                 <b className="mt-0.5 block text-xs text-ink">{val}</b>
               </div>
             ))}
@@ -165,7 +169,7 @@ export default function FormEResep({ antreanId, pasienServer, idDiagnosis, obatS
                   <label className="text-[11px] font-semibold text-ink-soft">
                     Nama Obat {info && <span className={`ml-1 font-bold ${info.jumlah_stok > 0 ? 'text-brand' : 'text-danger'}`}>(Stok: {info.jumlah_stok})</span>}
                     <input
-                      disabled={!dapatDiedit}
+                      disabled={sibuk || !dapatDiedit}
                       list="daftar-obat-db"
                       value={item.nama}
                       onChange={(e) => ubahObat(item.id, 'nama', e.target.value)}
@@ -176,7 +180,7 @@ export default function FormEResep({ antreanId, pasienServer, idDiagnosis, obatS
                   <label className="text-[11px] font-semibold text-ink-soft">
                     Dosis
                     <input
-                      disabled={!dapatDiedit}
+                      disabled={sibuk || !dapatDiedit}
                       value={item.dosis}
                       onChange={(e) => ubahObat(item.id, 'dosis', e.target.value)}
                       placeholder="500 mg"
@@ -186,7 +190,7 @@ export default function FormEResep({ antreanId, pasienServer, idDiagnosis, obatS
                   <label className="text-[11px] font-semibold text-ink-soft">
                     Jumlah
                     <input
-                      disabled={!dapatDiedit}
+                      disabled={sibuk || !dapatDiedit}
                       type="number"
                       min={1}
                       value={item.satuan}
@@ -198,7 +202,7 @@ export default function FormEResep({ antreanId, pasienServer, idDiagnosis, obatS
                   <label className="text-[11px] font-semibold text-ink-soft">
                     Aturan Pakai (Signa)
                     <input
-                      disabled={!dapatDiedit}
+                      disabled={sibuk || !dapatDiedit}
                       value={item.aturan}
                       onChange={(e) => ubahObat(item.id, 'aturan', e.target.value)}
                       placeholder="3 x 1 setelah makan"
@@ -234,13 +238,13 @@ export default function FormEResep({ antreanId, pasienServer, idDiagnosis, obatS
 
         <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white p-4 shadow-card">
           <div className="rounded-xl bg-surface-low px-4 py-2 text-xs">
-            <small className="block text-[9px] font-bold uppercase text-ink-muted">TOTAL ITEM OBAT</small>
+            <small className="block text-[11px] font-bold uppercase text-ink-muted">TOTAL ITEM OBAT</small>
             <b>{obat.length} Jenis Obat</b>
           </div>
           <div className="flex gap-2">
             <Button variant="secondary" onClick={() => router.visit(rute.dokter.antreanPeriksa)}>Kembali ke Antrean</Button>
             {dapatDiedit && (
-              <Button type="submit" icon={Send}>{modeEdit ? 'Simpan & Kirim Ulang E-Resep' : 'Kirim E-Resep'}</Button>
+              <Button type="submit" disabled={sibuk} icon={Send}>{modeEdit ? 'Simpan & Kirim Ulang E-Resep' : 'Kirim E-Resep'}</Button>
             )}
           </div>
         </section>

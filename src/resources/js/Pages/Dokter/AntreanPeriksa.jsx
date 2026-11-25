@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { router } from '@inertiajs/react';
+import { router, usePoll } from '@inertiajs/react';
 import {
   Building2, CalendarDays, CheckCircle2, ClipboardCheck, ClipboardClock,
   FileText, FolderOpen, Megaphone, Radio, RefreshCw, Search, Stethoscope, Users,
@@ -16,26 +16,39 @@ export default function AntreanPeriksa({ dokter = {}, antrean = [] }) {
   const [filter, setFilter] = useState('semua');
   const [layarDepan, setLayarDepan] = useState(false);
 
+  const [halaman, setHalaman] = useState(1);
+  const [konfirmasi, setKonfirmasi] = useState(null);
+  const [sibuk, setSibuk] = useState(false);
+  const [pesan, setPesan] = useState('');
+  usePoll(30000, { only: ['antrean'], preserveScroll: true });
   const hasil = useMemo(() => antrean.filter((p) => {
     const q = kata.trim().toLowerCase();
     const cocokStatus = filter === 'semua' || p.status === filter;
-    return cocokStatus && (!q || `${p.nama} ${p.rm} ${p.nik}`.toLowerCase().includes(q));
+    return cocokStatus && (!q || `${p.nama} ${p.rm} ${p.no}`.toLowerCase().includes(q));
   }), [antrean, kata, filter]);
 
+  const page = Math.min(halaman, Math.max(1, Math.ceil(hasil.length / 5)));
+  const tampil = hasil.slice((page - 1) * 5, page * 5);
+  const sedangDilayani = antrean.find((item) => item.status === 'sedang');
   const total = antrean.length;
   const sedang = antrean.filter((x) => x.status === 'sedang').length;
   const menunggu = antrean.filter((x) => x.status === 'menunggu').length;
   const selesai = antrean.filter((x) => x.status === 'selesai').length;
 
   function panggil(item) {
-    router.post(`/dokter/antrean-periksa/${item.id}/panggil`, {}, { preserveScroll: true });
+    if (!item || sibuk) return;
+    setSibuk(true);
+    router.post(`/dokter/antrean-periksa/${item.id}/panggil`, {}, {
+      preserveScroll: true, onSuccess: () => setKonfirmasi(null),
+      onError: (errs) => setPesan(Object.values(errs)[0]), onFinish: () => setSibuk(false),
+    });
   }
 
   return (
     <AppLayout role="dokter" title="Antrean Periksa">
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="flex items-center gap-2.5 text-3xl font-extrabold text-ink">
+          <h1 className="flex items-center gap-2.5 text-2xl sm:text-3xl font-bold text-ink">
             <Stethoscope className="size-7 text-brand" /> Daftar Antrean Ruang Periksa
           </h1>
           <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-ink-soft">
@@ -52,7 +65,7 @@ export default function AntreanPeriksa({ dokter = {}, antrean = [] }) {
         </div>
 
         <div className="flex items-center gap-2">
-          <Badge tone="success" dot>POLI AKTIF MELAYANI</Badge>
+          
           <Button variant="outline" icon={Radio} onClick={() => setLayarDepan(true)}>Layar Antrean Depan</Button>
         </div>
       </header>
@@ -70,7 +83,7 @@ export default function AntreanPeriksa({ dokter = {}, antrean = [] }) {
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-muted" />
             <input
               value={kata}
-              onChange={(e) => setKata(e.target.value)}
+              aria-label="Cari nama, nomor antrean, atau nomor rekam medis" onChange={(e) => { setKata(e.target.value); setHalaman(1); }}
               placeholder="Cari nama pasien, No. RM..."
               className="h-10 w-full rounded-xl bg-surface-input pl-9 pr-3 text-xs outline-none focus:ring-2 focus:ring-brand/30"
             />
@@ -78,7 +91,7 @@ export default function AntreanPeriksa({ dokter = {}, antrean = [] }) {
           <div className="flex items-center gap-2">
             <select
               value={filter}
-              onChange={(e) => setFilter(e.target.value)}
+              aria-label="Status antrean" onChange={(e) => { setFilter(e.target.value); setHalaman(1); }}
               className="h-10 rounded-xl bg-surface-input px-3 text-xs font-semibold outline-none"
             >
               <option value="semua">Semua Status</option>
@@ -94,19 +107,19 @@ export default function AntreanPeriksa({ dokter = {}, antrean = [] }) {
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-surface-low text-[10px] font-bold uppercase tracking-wider text-ink-muted">
+            <thead className="bg-surface-low text-[11px] font-bold uppercase tracking-wider text-ink-muted">
               <tr>
                 <th className="px-5 py-3.5">No. Antrean</th>
                 <th className="px-4 py-3.5">Waktu</th>
                 <th className="px-4 py-3.5">No. RM</th>
                 <th className="px-4 py-3.5">Nama Pasien</th>
-                <th className="px-4 py-3.5">Status Triage / Vital</th>
+                <th className="px-4 py-3.5">Status Triase / Vital</th>
                 <th className="px-4 py-3.5">Status Antrean</th>
                 <th className="px-5 py-3.5 text-right">Aksi Dokter</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {hasil.length > 0 ? hasil.map((p) => (
+              {hasil.length > 0 ? tampil.map((p) => (
                 <tr key={p.id} className={p.status === 'sedang' ? 'bg-brand-light/40' : 'hover:bg-surface/60'}>
                   <td className="px-5 py-4">
                     <span className={`inline-flex rounded-xl px-3 py-2 text-sm font-extrabold ${
@@ -118,7 +131,6 @@ export default function AntreanPeriksa({ dokter = {}, antrean = [] }) {
                   <td className="px-4 py-4 font-bold text-ink">{p.jam} WIB</td>
                   <td className="px-4 py-4">
                     <p className="font-bold text-ink">{p.rm}</p>
-                    <p className="text-[10px] text-ink-muted">NIK: {p.nik}</p>
                   </td>
                   <td className="px-4 py-4">
                     <p className="font-bold text-ink text-sm">{p.nama}</p>
@@ -127,11 +139,11 @@ export default function AntreanPeriksa({ dokter = {}, antrean = [] }) {
                   <td className="px-4 py-4">
                     {p.triage ? (
                       <div>
-                        <Badge tone="success">Triage Selesai</Badge>
-                        <p className="mt-1 text-[10px] text-ink-soft">TD {p.triage.td} • Suhu {p.triage.suhu}°C</p>
+                        <Badge tone="success">Triase Selesai</Badge>
+                        <p className="mt-1 text-[11px] text-ink-soft">TD {p.triage.td} • Suhu {p.triage.suhu}°C</p>
                       </div>
                     ) : (
-                      <Badge tone="warning">Belum Triage</Badge>
+                      <Badge tone="warning">Belum Triase</Badge>
                     )}
                   </td>
                   <td className="px-4 py-4">
@@ -142,7 +154,7 @@ export default function AntreanPeriksa({ dokter = {}, antrean = [] }) {
                   <td className="px-5 py-4">
                     <div className="flex flex-wrap items-center justify-end gap-2">
                       {p.status === 'menunggu' && (
-                        <Button variant="outline" icon={Megaphone} onClick={() => panggil(p)}>Panggil</Button>
+                        <Button variant="outline" icon={Megaphone} disabled={sedang > 0 || !p.triageSelesai} onClick={() => { setPesan(''); setKonfirmasi(p); }}>Panggil</Button>
                       )}
                       <Button
                         icon={FolderOpen}
@@ -157,7 +169,7 @@ export default function AntreanPeriksa({ dokter = {}, antrean = [] }) {
                           icon={FileText}
                           onClick={() => router.visit(rute.dokter.formEResep(p.id))}
                         >
-                          {p.eresepStatus === 'ditolak' ? 'Perbaiki E-Resep' : p.eresepStatus ? 'Edit E-Resep' : 'Buat E-Resep'}
+                          {p.eresepStatus === 'ditolak' ? 'Perbaiki E-Resep' : p.eresepStatus === 'terkirim' ? 'Edit e-resep' : p.eresepStatus ? 'Lihat e-resep' : 'Buat e-resep'}
                         </Button>
                       )}
                     </div>
@@ -166,28 +178,43 @@ export default function AntreanPeriksa({ dokter = {}, antrean = [] }) {
               )) : (
                 <tr>
                   <td colSpan={7} className="py-12 text-center text-ink-muted">
-                    Belum ada pasien yang memesan jadwal Anda pada hari ini.
+                    {kata || filter !== 'semua' ? 'Tidak ada pasien yang sesuai dengan filter.' : 'Belum ada pasien yang selesai menjalani triase hari ini.'}
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-3 text-xs text-ink-soft">
+          <span>{hasil.length ? `${(page-1)*5+1}–${Math.min(page*5,hasil.length)} dari ${hasil.length} pasien` : '0 pasien'} · Pembaruan setiap 30 detik</span>
+          {hasil.length > 5 && <div className="flex gap-2">
+            <Button variant="outline" disabled={page === 1} onClick={() => setHalaman(page-1)}>Sebelumnya</Button>
+            <Button variant="outline" disabled={page * 5 >= hasil.length} onClick={() => setHalaman(page+1)}>Berikutnya</Button>
+          </div>}
+        </div>
       </section>
 
-      <Modal open={layarDepan} onClose={() => setLayarDepan(false)} title="Layar Antrean Depan" subtitle={`${dokter.poli} — ${dokter.nama}`}>
+      <Modal open={Boolean(konfirmasi)} onClose={() => { if (!sibuk) setKonfirmasi(null); }} title="Panggil pasien ke ruang periksa?"
+        footer={<><Button variant="outline" disabled={sibuk} onClick={() => setKonfirmasi(null)}>Kembali</Button>
+          <Button disabled={sibuk} icon={Megaphone} onClick={() => panggil(konfirmasi)}>Panggil pasien</Button></>}>
+        {konfirmasi && <p>{konfirmasi.no} · <b>{konfirmasi.nama}</b> · {konfirmasi.rm}</p>}
+        {pesan && <p role="alert" className="field-error">{pesan}</p>}
+      </Modal>
+
+      <Modal layarPublik open={layarDepan} onClose={() => setLayarDepan(false)} title="Layar Antrean Depan" subtitle={`${dokter.poli} — ${dokter.nama}`}>
         <div className="space-y-4 text-center">
           <div className="rounded-2xl bg-brand p-6 text-white">
             <p className="text-xs font-bold uppercase tracking-widest opacity-80">SEDANG DIPERIKSA</p>
-            <p className="mt-2 text-5xl font-extrabold">{antrean.find((x) => x.status === 'sedang')?.no || '—'}</p>
-            <p className="mt-1 text-sm font-semibold">{antrean.find((x) => x.status === 'sedang')?.nama || 'Belum ada pasien dipanggil'}</p>
+            <p className="mt-2 text-5xl font-extrabold">{sedangDilayani?.no || '—'}</p>
+            {sedangDilayani && <p className="mt-2 text-sm">Sesi {sedangDilayani.jam} WIB</p>}
+
           </div>
           <div className="rounded-xl bg-surface-low p-4 text-left">
             <p className="text-[11px] font-bold uppercase text-ink-muted">ANTREAN BERIKUTNYA</p>
             <div className="mt-2 space-y-1.5 text-xs">
               {antrean.filter((x) => x.status === 'menunggu').slice(0, 3).map((x) => (
                 <div key={x.id} className="flex justify-between">
-                  <b>{x.no} — {x.nama}</b>
+                  <b>{x.no}</b>
                   <span className="text-ink-muted">{x.jam} WIB</span>
                 </div>
               ))}

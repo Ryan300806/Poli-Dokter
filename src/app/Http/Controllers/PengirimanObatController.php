@@ -36,21 +36,17 @@ class PengirimanObatController extends Controller
             'items' => array_map(fn ($obat) => [
                 ...$obat, 'nama' => $obat['nama_obat'], 'satuan' => $obat['jumlah_obat'], 'aturan' => $obat['aturan_pakai'],
             ], $resep['daftar_obat']),
-            'status' => [
-                'terkirim' => 'Menunggu Telaah Resep',
-                'diproses' => 'Perlu Diracik',
-                'siap_diserahkan' => 'Siap Diserahkan',
-                'ditolak' => 'Ditolak',
-                'selesai' => 'Obat Sudah Diberikan',
-            ][$resep['status_e_resep']] ?? $resep['status_e_resep'],
+            'status' => EResep::LABEL[$resep['status_e_resep']] ?? $resep['status_e_resep'],
         ];
     }
 
     public function halamanPengiriman(int $idEResep): Response
     {
+        $resep = $this->getInfoEresep($idEResep);
+        abort_unless(in_array($resep['status_e_resep'], ['siap_diserahkan', 'selesai'], true), 409, 'Selesaikan penyiapan obat terlebih dahulu.');
         return Inertia::render('Apoteker/PengirimanObat', [
             'eresepId' => (string) $idEResep,
-            'eresepServer' => $this->getInfoEresep($idEResep),
+            'eresepServer' => $resep,
         ]);
     }
 }

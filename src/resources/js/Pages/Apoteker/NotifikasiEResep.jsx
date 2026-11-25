@@ -1,117 +1,78 @@
-import { useMemo, useState } from 'react';
-import { router } from '@inertiajs/react';
-import { AlertCircle, ArrowRight, BellRing, FileText, Hourglass, MailOpen, Search } from 'lucide-react';
+import { useState } from 'react';
+import { Link, router, usePoll } from '@inertiajs/react';
+import { ArrowRight, FileText, Hourglass, MailOpen, Search } from 'lucide-react';
 import AppLayout from '../../Layouts/AppLayout';
 import Button from '../../Components/ui/Button';
 import Badge from '../../Components/ui/Badge';
 import StatCard from '../../Components/ui/StatCard';
 import { rute } from '../../lib/rute';
 
-export default function NotifikasiEResep({ resepServer = [] }) {
-  const [filter, setFilter] = useState('semua');
-  const [kata, setKata] = useState('');
+const tahapan = [
+  ['', 'Semua status'], ['terkirim', 'Menunggu telaah'], ['diproses', 'Sedang diracik'],
+  ['siap_diserahkan', 'Siap diserahkan'], ['ditolak', 'Ditolak'], ['selesai', 'Sudah diserahkan'],
+];
 
-  const hasil = useMemo(() => resepServer.filter((item) => {
-    const cocokFilter = filter === 'semua'
-      || (filter === 'belum' && ['Menunggu Telaah Resep', 'Perlu Diracik'].includes(item.status))
-      || (filter === 'selesai' && ['Siap Diserahkan', 'Obat Sudah Diberikan'].includes(item.status));
-    const q = kata.trim().toLowerCase();
+export default function NotifikasiEResep({ resepServer, filters, jumlahStatus }) {
+  const [kata, setKata] = useState(filters.q);
+  const total = Object.values(jumlahStatus).reduce((sum, n) => sum + Number(n), 0);
+  usePoll(30000, { only: ['resepServer', 'jumlahStatus'], preserveScroll: true });
 
-    return cocokFilter && (!q || `${item.pasien} ${item.id} ${item.dokter}`.toLowerCase().includes(q));
-  }), [resepServer, filter, kata]);
-
-  const perluTelaah = resepServer.filter((x) => x.status === 'Menunggu Telaah Resep').length;
-  const siapSerah = resepServer.filter((x) => x.status === 'Siap Diserahkan').length;
+  function cari(status, q) {
+    router.get(rute.apoteker.notifikasiEResep, { status, q }, { preserveState: true, preserveScroll: true, replace: true });
+  }
 
   return (
-    <AppLayout role="apoteker" title="Notifikasi E-Resep">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <Badge tone="success">FARMASI RAWAT JALAN</Badge>
-          <h1 className="mt-1.5 text-3xl font-extrabold text-ink">Notifikasi E-Resep</h1>
-        </div>
-        <Badge tone="success" dot>Sistem HIS Aktif</Badge>
+    <AppLayout role="apoteker" title="Notifikasi e-resep">
+      <header>
+        <h1 className="text-2xl font-bold sm:text-3xl">Notifikasi e-resep</h1>
+        <p className="mt-1 text-sm text-ink-soft">Telaah resep dari dokter dan pantau obat sampai diserahkan ke pasien.</p>
       </header>
-
-      <section className="grid gap-4 md:grid-cols-3">
-        <StatCard label="TOTAL E-RESEP" value={resepServer.length} unit="Resep Masuk" icon={BellRing} />
-        <StatCard label="MENUNGGU TELAAH" value={perluTelaah} unit="Resep Baru" icon={MailOpen} tone="brand" detail="Memerlukan telaah resep segera" />
-        <StatCard label="SIAP DISERAHKAN" value={siapSerah} unit="Antrean Loket" icon={Hourglass} detail="Menunggu pengambilan pasien" />
+      <section aria-label="Ringkasan farmasi" className="grid gap-3 sm:grid-cols-3">
+        <StatCard label="Seluruh resep" value={total} unit="resep" icon={FileText} />
+        <StatCard label="Menunggu telaah" value={jumlahStatus.terkirim || 0} unit="resep" icon={MailOpen} tone="brand" />
+        <StatCard label="Siap diserahkan" value={jumlahStatus.siap_diserahkan || 0} unit="resep" icon={Hourglass} />
       </section>
-
-      <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white p-4 shadow-card">
-        <div className="flex flex-wrap gap-2">
-          {[
-            ['semua', 'Semua'],
-            ['belum', 'Perlu Ditelaah'],
-            ['selesai', 'Siap / Selesai'],
-          ].map(([key, label]) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setFilter(key)}
-              className={`rounded-xl px-4 py-2 text-xs font-bold transition cursor-pointer ${
-                filter === key ? 'bg-brand-light-active text-brand-dark' : 'bg-surface-low text-ink-soft hover:bg-surface-mid'
-              }`}
-            >
-              {label}
-            </button>
+      <section className="overflow-hidden rounded-xl border border-line bg-white">
+        <form onSubmit={(e) => { e.preventDefault(); cari(filters.status, kata); }}
+          className="flex flex-wrap items-end gap-3 border-b border-line p-4">
+          <label className="min-w-44 flex-1 text-sm font-semibold">Cari resep
+            <input type="search" className="field-input" placeholder="Nama pasien, dokter, atau nomor resep"
+              maxLength={100} value={kata} onChange={(e) => setKata(e.target.value)} />
+          </label>
+          <label className="text-sm font-semibold">Tahap layanan
+            <select className="field-input" value={filters.status} onChange={(e) => cari(e.target.value, kata)}>
+              {tahapan.map(([value,label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+          </label>
+          <Button type="submit" variant="outline" icon={Search}>Cari</Button>
+        </form>
+        <ul className="divide-y divide-line">
+          {resepServer.data.map((item) => (
+            <li key={item.id} className="flex flex-wrap items-center justify-between gap-4 px-5 py-4">
+              <div>
+                <p className="text-xs font-semibold text-ink-muted">Resep #{item.id} · {String(item.tanggal).replace('T',' ').slice(0,16)} WIB</p>
+                <h2 className="mt-1 text-base font-bold">{item.pasien}</h2>
+                <p className="mt-1 text-sm text-ink-soft">{item.dokter} · {item.poli} · {item.jumlahJenis} jenis obat</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {item.stokKurang && !['selesai','ditolak'].includes(item.statusRaw) && <Badge tone="warning">Stok kurang</Badge>}
+                <Badge tone={item.statusRaw === 'ditolak' ? 'danger' : item.statusRaw === 'siap_diserahkan' ? 'success' : 'neutral'}>{item.status}</Badge>
+                <Button href={rute.apoteker.rincianEResep(item.id)} variant="outline" icon={ArrowRight}>Buka resep</Button>
+              </div>
+            </li>
           ))}
-        </div>
-
-        <label className="relative w-full sm:w-72">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-muted" />
-          <input
-            value={kata}
-            onChange={(e) => setKata(e.target.value)}
-            placeholder="Cari nama pasien atau ID E-Resep..."
-            className="h-10 w-full rounded-xl bg-surface-input pl-9 pr-3 text-xs outline-none focus:ring-2 focus:ring-brand/30"
-          />
-        </label>
-      </section>
-
-      <section className="space-y-3">
-        {hasil.length > 0 ? hasil.map((item) => {
-          const kurang = (item.items ?? []).some((o) => Number(o.jumlah_stok ?? 0) < Number(o.jumlah_obat ?? 0));
-          return (
-            <article key={item.id} className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border-l-4 border-brand bg-white p-5 shadow-card">
-              <div className="flex items-start gap-4">
-                <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-brand-light-active text-brand">
-                  <FileText className="size-6" />
-                </span>
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-base font-bold text-ink">E-Resep #{item.id}</h2>
-                    <span className="text-[11px] font-semibold text-brand">• {new Date(item.tanggal).toLocaleString('id-ID')}</span>
-                  </div>
-                  <div className="mt-1.5 flex flex-wrap gap-4 text-xs text-ink-soft">
-                    <span>Pasien: <b className="text-ink">{item.pasien}</b></span>
-                    <span>Dokter: <b className="text-ink">{item.dokter}</b></span>
-                    <span>Poli: <Badge tone="neutral">{item.poli || 'Poliklinik'}</Badge></span>
-                  </div>
-                  <div className="mt-2.5 flex flex-wrap items-center gap-2 text-[11px] text-ink-muted">
-                    <span>{item.items?.length ?? 0} R/ Obat</span>
-                    <Badge tone={kurang ? 'danger' : 'success'}>
-                      {kurang ? 'Ada Stok Kurang / Habis' : 'Stok Obat Tersedia'}
-                    </Badge>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-col items-end gap-2">
-                <Badge tone={item.status === 'Ditolak' ? 'danger' : 'success'} dot>{item.status}</Badge>
-                <Button icon={ArrowRight} onClick={() => router.visit(rute.apoteker.rincianEResep(item.id))}>
-                  Buka E-Resep
-                </Button>
-              </div>
-            </article>
-          );
-        }) : (
-          <div className="rounded-2xl bg-white p-12 text-center text-xs text-ink-muted shadow-card">
-            <AlertCircle className="mx-auto size-8 text-ink-muted" />
-            <p className="mt-2 font-semibold">Tidak ada E-Resep yang cocok dengan filter.</p>
+        </ul>
+        {!resepServer.data.length && <div className="p-9 text-center">
+          <p className="font-semibold">{filters.q || filters.status ? 'Tidak ada resep yang cocok' : 'Belum ada resep masuk'}</p>
+          <p className="mt-1 text-sm text-ink-soft">{filters.q || filters.status ? 'Ubah pencarian atau pilih semua status.' : 'Resep muncul setelah dokter mengirimkannya dari hasil pemeriksaan.'}</p>
+        </div>}
+        {resepServer.total > 0 && <nav aria-label="Halaman resep" className="flex flex-wrap items-center justify-between gap-2 border-t border-line p-4 text-sm">
+          <span>{resepServer.from}–{resepServer.to} dari {resepServer.total} resep</span>
+          <div className="flex gap-3">
+            {resepServer.prev_page_url && <Link className="font-semibold text-brand" href={resepServer.prev_page_url}>Sebelumnya</Link>}
+            {resepServer.next_page_url && <Link className="font-semibold text-brand" href={resepServer.next_page_url}>Berikutnya</Link>}
           </div>
-        )}
+        </nav>}
       </section>
     </AppLayout>
   );

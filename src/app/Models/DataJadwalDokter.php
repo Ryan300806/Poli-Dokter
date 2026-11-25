@@ -16,12 +16,18 @@ class DataJadwalDokter extends Model
 
     protected $fillable = ['id_dokter', 'id_poli', 'tanggal', 'jam', 'kuota', 'sisa_kuota', 'status_slot'];
 
-    public static function getJadwalTersedia(?int $idPoli = null): array
+    public static function getJadwalTersedia(?int $idPoli = null, ?string $tanggal = null, ?int $idDokter = null): array
     {
         return DB::table('slot_jadwal as s')
             ->join('dokter as d', 'd.id_dokter', '=', 's.id_dokter')
             ->join('poli as p', 'p.id_poli', '=', 's.id_poli')
-            ->whereDate('s.tanggal', '>=', today())
+            ->when($tanggal, fn ($q) => $q->where('s.tanggal', $tanggal))
+            ->when($idDokter, fn ($q) => $q->where('s.id_dokter', $idDokter))
+            ->where(function ($q) {
+                $q->where('s.tanggal', '>', today()->toDateString())->orWhere(function ($q) {
+                    $q->where('s.tanggal', today()->toDateString())->where('s.jam', '>', now()->format('H:i:s'));
+                });
+            })
             ->where('s.status_slot', 'tersedia')
             ->when($idPoli, fn ($query) => $query->where('s.id_poli', $idPoli))
             ->orderBy('s.tanggal')
@@ -62,12 +68,7 @@ class DataJadwalDokter extends Model
 
     public static function bebaskanSlotLama(int $idSlot): bool
     {
-        $slot = static::query()->whereKey($idSlot)->first();
-        if (! $slot || $slot->sisa_kuota >= $slot->kuota) {
-            return false;
-        }
-
-        return static::query()->whereKey($idSlot)->increment('sisa_kuota') > 0;
+        return static::whereKey($idSlot)->whereColumn('sisa_kuota', '<', 'kuota')->increment('sisa_kuota') > 0;
     }
 
     public static function updateStatusSlot(int $idSlot, string $status): bool
@@ -85,8 +86,13 @@ class DataJadwalDokter extends Model
 
     public static function cekBentrokJadwal(int $idDokter, string $tanggal, string $jam, ?int $abaikanSlot = null): bool
     {
-        return static::query()->where('id_dokter', $idDokter)->whereDate('tanggal', $tanggal)->where('jam', $jam)
-            ->when($abaikanSlot, fn ($query) => $query->where('id_slot', '!=', $abaikanSlot))->exists();
+        $mulai = \Carbon\Carbon::parse($tanggal.' '.$jam);
+        $sebelum = $mulai->copy()->subHour();
+        $sesudah = $mulai->copy()->addHour();
+        return static::where('id_dokter', $idDokter)->where('tanggal', $tanggal)
+            ->when($sebelum->toDateString() === $mulai->toDateString(), fn ($q) => $q->where('jam', '>', $sebelum->format('H:i:s')))
+            ->when($sesudah->toDateString() === $mulai->toDateString(), fn ($q) => $q->where('jam', '<', $sesudah->format('H:i:s')))
+            ->when($abaikanSlot, fn ($q) => $q->where('id_slot', '!=', $abaikanSlot))->exists();
     }
 
     public static function simpanSlot(array $dataSlot): bool

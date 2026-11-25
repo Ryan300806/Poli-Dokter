@@ -18,7 +18,7 @@ class ObservasiController extends Controller
     {
         $rows = collect(DataReservasi::ambilAntreanTriage(today()->toDateString()))->map(function ($row) {
             $item = (object) $row;
-            $umur = $item->tanggal_lahir ? (int) now()->diffInYears($item->tanggal_lahir) : null;
+            $umur = $item->tanggal_lahir ? (int) \Carbon\Carbon::parse($item->tanggal_lahir)->age : null;
 
             return [
                 'id' => (string) $item->id_antrean,
@@ -26,13 +26,13 @@ class ObservasiController extends Controller
                 'no' => 'T-'.str_pad((string) $item->nomor_antrean, 2, '0', STR_PAD_LEFT),
                 'jam' => substr((string) $item->jam, 0, 5),
                 'rm' => 'RM-'.str_pad((string) $item->id_pasien, 6, '0', STR_PAD_LEFT),
-                'nik' => $item->nik,
+                'nik' => str_repeat('•', 12).substr($item->nik, -4),
                 'nama' => $item->nama_lengkap,
                 'jk' => $item->jenis_kelamin === 'P' ? 'Perempuan' : 'Laki-laki',
                 'umur' => $umur ?? '—',
                 'poli' => $item->nama_poli,
                 'kategori' => $umur !== null ? ($umur >= 60 ? 'Geriatri' : ($umur < 12 ? 'Pediatri' : 'Umum')) : 'Umum',
-                'status' => $item->id_observasi ? 'Triage Selesai' : 'Belum Diukur',
+                'status' => $item->id_observasi ? 'Triase Selesai' : 'Belum Diukur',
                 'id_observasi' => $item->id_observasi,
                 'tekanan_darah' => $item->tekanan_darah,
                 'suhu' => $item->suhu,
@@ -59,7 +59,7 @@ class ObservasiController extends Controller
                 'nama' => $pasien['nama_lengkap'],
                 'nik' => $pasien['nik'],
                 'jk' => $pasien['jenis_kelamin'] === 'P' ? 'Perempuan' : 'Laki-laki',
-                'umur' => $pasien['tanggal_lahir'] ? (int) now()->diffInYears($pasien['tanggal_lahir']) : '—',
+                'umur' => $pasien['tanggal_lahir'] ? (int) \Carbon\Carbon::parse($pasien['tanggal_lahir'])->age : '—',
                 'rm' => 'RM-'.str_pad((string) $pasien['id_pasien'], 6, '0', STR_PAD_LEFT),
                 'poli' => $reservasi->nama_poli ?? '—',
                 'no' => 'A-'.str_pad((string) $reservasi->nomor_antrean, 3, '0', STR_PAD_LEFT),
@@ -68,7 +68,7 @@ class ObservasiController extends Controller
                 'suhu' => $observasi->suhu ?? '',
                 'berat' => $observasi->berat_badan ?? '',
             ],
-            'observasi' => $observasi ? (array) $observasi : null,
+            'observasi' => $observasi?->only(['id_observasi']),
         ]);
     }
 
@@ -86,7 +86,7 @@ class ObservasiController extends Controller
             $idPerawat ? (int) $idPerawat : null
         );
 
-        return redirect()->route('perawat.antrean-triage')->with('success', 'Data observasi triage berhasil disimpan.');
+        return redirect()->route('perawat.antrean-triage')->with('success', 'Data observasi triase berhasil disimpan.');
     }
 
     public function getDataObservasi(int $idObservasi): array

@@ -13,12 +13,12 @@ export default function Beranda({ pasien = {}, jadwal = [] }) {
     <AppLayout role="pasien" title="Beranda Pasien">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-extrabold text-ink">Selamat Datang, {namaDepan}</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-ink">Selamat datang, {namaDepan}</h1>
           <p className="mt-1 text-xs text-ink-soft">
-            Kelola layanan rawat jalan, verifikasi nomor antrean klinik, dan pantau informasi jadwal konsultasi kesehatan Anda secara real-time.
+            Lihat nomor antrean dan jadwal kunjungan Anda.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button href={rute.pasien.penjadwalanPoli} icon={CalendarDays}>Buat Janji Temu</Button>
           <Button href={rute.pasien.riwayatReservasi} variant="outline" icon={Ticket}>Riwayat &amp; Jadwal</Button>
         </div>
@@ -26,7 +26,7 @@ export default function Beranda({ pasien = {}, jadwal = [] }) {
 
       {jadwal.length > 0 ? (
         <section className="space-y-4">
-          {jadwal.map((item) => (
+          {jadwal.map((item, index) => (
             <article
               key={item.id_reservasi}
               className="grid items-center gap-5 rounded-2xl border-l-4 border-brand bg-white p-6 shadow-card lg:grid-cols-[1fr_auto]"
@@ -35,7 +35,7 @@ export default function Beranda({ pasien = {}, jadwal = [] }) {
                 <div className="flex flex-wrap items-center gap-3">
                   <Badge tone="success"><CheckCircle2 className="size-3.5" /> Kunjungan Terkonfirmasi</Badge>
                   <span className="flex items-center gap-1.5 text-xs font-semibold text-ink-soft">
-                    <CalendarDays className="size-4 text-brand" /> Jadwal Terdekat
+                    <CalendarDays className="size-4 text-brand" /> {index === 0 ? 'Kunjungan terdekat' : 'Kunjungan berikutnya'}
                   </span>
                 </div>
                 <div className="mt-4 grid gap-3 sm:grid-cols-3">
@@ -58,11 +58,11 @@ export default function Beranda({ pasien = {}, jadwal = [] }) {
               </div>
 
               <div className="flex flex-col items-center gap-2 rounded-2xl bg-surface-low px-6 py-4 text-center">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">NOMOR ANTREAN ANDA</p>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">NOMOR ANTREAN ANDA</p>
                 <div className="inline-flex items-center gap-2 rounded-xl bg-brand-light-active px-4 py-2 text-2xl font-extrabold text-brand-dark">
                   <Ticket className="size-5" /> A-{String(item.nomor_antrean).padStart(3, '0')}
                 </div>
-                <Button href={`${rute.pasien.riwayatReservasi}?status=aktif`} icon={ArrowRight} className="mt-1 w-full">
+                <Button href={`/pasien/reservasi/${item.id_reservasi}`} icon={ArrowRight} className="mt-1 w-full">
                   Lihat Detail
                 </Button>
               </div>

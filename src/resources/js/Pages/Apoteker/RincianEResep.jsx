@@ -3,9 +3,9 @@ import { router } from '@inertiajs/react';
 import { ArrowLeft, ArrowRight, CheckCircle2, ClipboardList, PackageCheck, ShieldAlert, XCircle } from 'lucide-react';
 import AppLayout from '../../Layouts/AppLayout';
 import Button from '../../Components/ui/Button';
+import PenerimaanStok from '../../Components/ui/PenerimaanStok';
 import Badge from '../../Components/ui/Badge';
 import Modal from '../../Components/ui/Modal';
-import { toast } from '../../Components/ui/Toast';
 import { rute } from '../../lib/rute';
 
 export default function RincianEResep({ eresepId, resepServer }) {
@@ -14,18 +14,30 @@ export default function RincianEResep({ eresepId, resepServer }) {
   const [alasan, setAlasan] = useState('');
   const [error, setError] = useState('');
 
-  const adaStokKurang = Boolean(resep?.items?.some((i) => Number(i.jumlah_stok ?? 0) < Number(i.jumlah_obat ?? 0)));
-  const sudahSelesai = resep?.status === 'Obat Sudah Diberikan';
-  const ditolak = resep?.status === 'Ditolak';
+  const [obatDisiapkan, setObatDisiapkan] = useState([]);
+  const [sibuk, setSibuk] = useState(false);
+  const kebutuhan = new Map();
+  for (const item of resep.items) {
+    kebutuhan.set(item.id_obat, (kebutuhan.get(item.id_obat) || 0) + Number(item.jumlah_obat));
+  }
+  const adaStokKurang = resep.items.some((item) => Number(item.jumlah_stok ?? 0) < kebutuhan.get(item.id_obat));
+  const sudahSelesai = resep.status_e_resep === 'selesai';
+  const ditolak = resep.status_e_resep === 'ditolak';
+  const baru = resep.status_e_resep === 'terkirim';
 
-  function setujui() {
-    if (adaStokKurang) {
-      toast.error('Stok obat tidak mencukupi untuk resep ini.');
-      return;
-    }
-    router.post(`/apoteker/e-resep/${eresepId}/status`, { statusBaru: 'siap_diserahkan' }, {
-      onSuccess: () => router.visit(rute.apoteker.pengirimanObat(resep.id)),
-      onError: (errs) => toast.error(errs.stok || 'Gagal memperbarui status E-Resep.'),
+  function pilihObat(id, dipilih) {
+    setObatDisiapkan((sebelum) => dipilih ? [...sebelum, id] : sebelum.filter((item) => item !== id));
+  }
+
+  function perbarui(tujuan, tambahan = {}) {
+    if (sibuk) return;
+    setError('');
+    setSibuk(true);
+    router.post(`/apoteker/e-resep/${eresepId}/status`, { statusBaru: tujuan, versi: resep.versi, ...tambahan }, {
+      preserveScroll: true,
+      onSuccess: () => setModalTolak(false),
+      onError: (errs) => setError(Object.values(errs)[0]),
+      onFinish: () => setSibuk(false),
     });
   }
 
@@ -34,10 +46,7 @@ export default function RincianEResep({ eresepId, resepServer }) {
       setError('Alasan penolakan wajib diisi agar dokter dapat memperbaikinya.');
       return;
     }
-    router.post(`/apoteker/e-resep/${eresepId}/status`, { statusBaru: 'ditolak', alasanPenolakan: alasan.trim() }, {
-      onSuccess: () => { setModalTolak(false); toast.success('E-Resep ditolak dan dikembalikan ke dokter.'); },
-      onError: () => toast.error('Gagal menolak E-Resep.'),
-    });
+    perbarui('ditolak', { alasanPenolakan: alasan.trim() });
   }
 
   return (
@@ -51,11 +60,11 @@ export default function RincianEResep({ eresepId, resepServer }) {
 
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-brand">FARMASI RAWAT JALAN • TELAAH RESEP</p>
-          <h1 className="mt-1 text-3xl font-extrabold text-ink">Rincian E-Resep &amp; Ketersediaan Stok</h1>
+          <p className="text-[11px] font-bold uppercase tracking-wider text-brand">FARMASI RAWAT JALAN • TELAAH RESEP</p>
+          <h1 className="mt-1 text-2xl sm:text-3xl font-bold text-ink">Rincian E-Resep &amp; Ketersediaan Stok</h1>
         </div>
         <div className="rounded-2xl bg-white px-4 py-2.5 shadow-card">
-          <small className="block text-[9px] font-bold uppercase text-ink-muted">NOMOR E-RESEP</small>
+          <small className="block text-[11px] font-bold uppercase text-ink-muted">NOMOR E-RESEP</small>
           <b className="text-sm text-brand">#{resep.id}</b>
         </div>
       </header>
@@ -66,9 +75,9 @@ export default function RincianEResep({ eresepId, resepServer }) {
             <h2 className="text-base font-bold text-ink">{resep.pasien} <Badge tone="neutral">{resep.rm}</Badge></h2>
             <p className="mt-1 text-xs text-ink-muted">Poli: <b>{resep.poli}</b> • Diagnosis: <b>{resep.diagnosis}</b></p>
             <div className="mt-4 grid gap-3 sm:grid-cols-3 text-xs">
-              <div className="rounded-xl bg-surface-low p-3"><small className="block text-[9px] font-bold uppercase text-ink-muted">DOKTER PENULIS</small><b>{resep.dokter}</b></div>
-              <div className="rounded-xl bg-surface-low p-3"><small className="block text-[9px] font-bold uppercase text-ink-muted">WAKTU KIRIM</small><b>{new Date(resep.tanggal).toLocaleString('id-ID')}</b></div>
-              <div className="rounded-xl bg-surface-low p-3"><small className="block text-[9px] font-bold uppercase text-ink-muted">TOTAL ITEM</small><b>{resep.items?.length ?? 0} Jenis Obat</b></div>
+              <div className="rounded-xl bg-surface-low p-3"><small className="block text-[11px] font-bold uppercase text-ink-muted">DOKTER PENULIS</small><b>{resep.dokter}</b></div>
+              <div className="rounded-xl bg-surface-low p-3"><small className="block text-[11px] font-bold uppercase text-ink-muted">WAKTU KIRIM</small><b>{new Date(resep.tanggal).toLocaleString('id-ID')}</b></div>
+              <div className="rounded-xl bg-surface-low p-3"><small className="block text-[11px] font-bold uppercase text-ink-muted">TOTAL ITEM</small><b>{kebutuhan.size} jenis obat</b></div>
             </div>
           </section>
 
@@ -81,7 +90,7 @@ export default function RincianEResep({ eresepId, resepServer }) {
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-surface-low text-[10px] font-bold uppercase tracking-wider text-ink-muted">
+                <thead className="bg-surface-low text-[11px] font-bold uppercase tracking-wider text-ink-muted">
                   <tr>
                     <th className="px-5 py-3">Nama Obat &amp; Sediaan</th>
                     <th className="px-4 py-3">Dosis &amp; Aturan</th>
@@ -94,7 +103,7 @@ export default function RincianEResep({ eresepId, resepServer }) {
                   {resep.items?.map((item, idx) => {
                     const stok = Number(item.jumlah_stok ?? 0);
                     const butuh = Number(item.jumlah_obat ?? 0);
-                    const cukup = stok >= butuh;
+                    const cukup = stok >= kebutuhan.get(item.id_obat);
                     return (
                       <tr key={`${item.id_obat}-${idx}`}>
                         <td className="px-5 py-4 font-bold text-ink">{item.nama}</td>
@@ -123,27 +132,34 @@ export default function RincianEResep({ eresepId, resepServer }) {
         <aside className="space-y-4">
           <section className="rounded-2xl bg-white p-5 shadow-card">
             <h2 className="flex items-center gap-2 text-sm font-bold text-ink">
-              <PackageCheck className="size-5 text-brand" /> Ringkasan Ketersediaan
+              <PackageCheck className="size-5 text-brand" /> {resep.status_e_resep === 'diproses' ? 'Obat yang sudah disiapkan' : 'Ringkasan ketersediaan'}
             </h2>
             <div className="mt-3 space-y-2">
-              {resep.items?.map((item, i) => {
+              {Array.from(kebutuhan, ([id, butuh]) => {
+                const item = resep.items.find((baris) => baris.id_obat === id);
                 const stok = Number(item.jumlah_stok ?? 0);
-                const butuh = Number(item.jumlah_obat ?? 0);
-                const cukup = stok >= butuh;
                 return (
-                  <div key={i} className="flex items-center justify-between border-b border-line py-2 text-xs last:border-b-0">
-                    <span className="text-ink-soft">{item.nama}</span>
-                    <b className={cukup ? 'text-brand-dark' : 'text-danger'}>{stok} / {butuh} unit</b>
+                  <div key={id} className="flex flex-wrap items-center justify-between gap-2 border-b border-line py-2 text-xs last:border-b-0">
+                    {resep.status_e_resep === 'diproses' ? (
+                      <label className="flex items-center gap-2">
+                        <input type="checkbox" checked={obatDisiapkan.includes(id)} disabled={stok < butuh || sibuk}
+                          onChange={(e) => pilihObat(id, e.target.checked)} />
+                        {item.nama} sudah disiapkan
+                      </label>
+                    ) : <span>{item.nama}</span>}
+                    <span className={stok >= butuh ? 'text-brand-dark' : 'text-danger'}>Stok {stok} · Butuh {butuh}</span>
                   </div>
                 );
               })}
             </div>
           </section>
 
+          {!sudahSelesai && !ditolak && <PenerimaanStok idResep={eresepId} items={resep.items} />}
+          {error && !modalTolak && <p role="alert" className="field-error">{error}</p>}
           {adaStokKurang && !ditolak && !sudahSelesai && (
             <div role="alert" className="rounded-2xl bg-warning-light p-4 text-xs text-warning">
               <b>Stok obat tidak mencukupi!</b>
-              <p className="mt-1">Beberapa item melebihi stok gudang. Tolak resep agar dokter dapat mengganti obat/jumlahnya.</p>
+              <p className="mt-1">Jumlah yang dibutuhkan melebihi stok. Catat stok yang sudah diterima atau kembalikan resep kepada dokter untuk ditelaah.</p>
             </div>
           )}
 
@@ -164,17 +180,17 @@ export default function RincianEResep({ eresepId, resepServer }) {
               <Button
                 icon={CheckCircle2}
                 className="w-full"
-                disabled={ditolak || sudahSelesai || adaStokKurang}
-                onClick={setujui}
+                disabled={sibuk || ditolak || sudahSelesai || adaStokKurang || (!baru && obatDisiapkan.length !== kebutuhan.size)}
+                onClick={() => baru ? perbarui('diproses') : perbarui('siap_diserahkan', { obatDisiapkan })}
               >
-                Setujui &amp; Siapkan Obat
+                {sibuk ? 'Menyimpan…' : baru ? 'Terima dan mulai peracikan' : 'Tandai siap diserahkan'}
               </Button>
             )}
             <Button
               variant="softDanger"
               icon={XCircle}
               className="w-full"
-              disabled={ditolak || sudahSelesai}
+              disabled={sibuk || !['terkirim', 'diproses'].includes(resep.status_e_resep)}
               onClick={() => setModalTolak(true)}
             >
               Tolak Resep
@@ -191,7 +207,7 @@ export default function RincianEResep({ eresepId, resepServer }) {
         footer={(
           <>
             <Button variant="secondary" onClick={() => setModalTolak(false)}>Batal</Button>
-            <Button variant="danger" icon={XCircle} onClick={tolakResep}>Konfirmasi Penolakan</Button>
+            <Button variant="danger" icon={XCircle} disabled={sibuk} onClick={tolakResep}>Konfirmasi Penolakan</Button>
           </>
         )}
       >

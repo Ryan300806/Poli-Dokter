@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { router } from '@inertiajs/react';
 import { ArrowLeft, ArrowRight, ClipboardList, HeartPulse, ShieldAlert, Stethoscope } from 'lucide-react';
 import AppLayout from '../../Layouts/AppLayout';
@@ -5,16 +6,23 @@ import Button from '../../Components/ui/Button';
 import Badge from '../../Components/ui/Badge';
 import { rute } from '../../lib/rute';
 
-export default function RiwayatMedis({ daftarPasien = null, pasien = null, riwayatMedis = {}, triageTerbaru = {}, riwayatDiagnosis = [], antreanId = null }) {
+export default function RiwayatMedis({ daftarPasien = null, pasien = null, riwayatMedis = {}, triageTerbaru = {}, riwayatDiagnosis = [], antreanId = null, dariAntrean = false, cari = '', halaman = {} }) {
+  const [kata, setKata] = useState(cari);
   // Mode 1: Daftar pasien poli dokter (_p23)
   if (Array.isArray(daftarPasien)) {
     return (
       <AppLayout role="dokter" title="Riwayat Medis Pasien">
         <header>
-          <h1 className="text-3xl font-extrabold text-ink">Riwayat Medis Pasien</h1>
-          <p className="mt-1 text-xs text-ink-soft">Daftar pasien yang terdaftar pada jadwal praktek Anda.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-ink">Riwayat Medis Pasien</h1>
+          <p className="mt-1 text-xs text-ink-soft">Cari pasien yang pernah terdaftar pada jadwal praktik Anda.</p>
         </header>
 
+        <form className="flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); router.get(rute.dokter.riwayatMedis(), { cari: kata.trim() }); }}>
+          <label className="field-label">Nama atau nomor rekam medis
+            <input className="field-input" value={kata} maxLength={100} onChange={(e) => setKata(e.target.value)} />
+          </label>
+          <Button type="submit">Cari pasien</Button>
+        </form>
         <div className="space-y-4">
           {daftarPasien.length > 0 ? daftarPasien.map((p) => (
             <article key={p.id} className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-white p-5 shadow-card">
@@ -27,14 +35,13 @@ export default function RiwayatMedis({ daftarPasien = null, pasien = null, riway
                     <h2 className="text-lg font-bold text-ink">{p.nama}</h2>
                     <Badge tone="success">{p.rm}</Badge>
                   </div>
-                  <p className="mt-0.5 text-xs text-ink-muted">NIK: {p.nik} • {p.umur} Tahun ({p.jk})</p>
-                  <p className="mt-1 text-xs text-ink-soft">Gol. Darah: <b>{p.golDarah}</b> • Telp: <b>{p.telepon}</b></p>
+                  <p className="mt-0.5 text-xs text-ink-muted">{p.umur} tahun · {p.jk}</p>
                 </div>
               </div>
 
               <div className="flex items-center gap-4">
                 <div className="rounded-xl bg-danger-light px-4 py-2.5 text-danger">
-                  <p className="flex items-center gap-1 text-[10px] font-bold uppercase"><ShieldAlert className="size-3.5" /> Peringatan Alergi</p>
+                  <p className="flex items-center gap-1 text-[11px] font-bold uppercase"><ShieldAlert className="size-3.5" /> Peringatan Alergi</p>
                   <p className="mt-0.5 text-xs font-bold">{p.alergi.join(', ')}</p>
                 </div>
                 <Button icon={ArrowRight} onClick={() => router.visit(rute.dokter.riwayatMedis(p.id))}>
@@ -44,10 +51,17 @@ export default function RiwayatMedis({ daftarPasien = null, pasien = null, riway
             </article>
           )) : (
             <div className="rounded-2xl bg-white p-12 text-center text-xs text-ink-muted shadow-card">
-              Belum ada pasien yang tercatat pada jadwal Anda.
+              {cari ? 'Tidak ada pasien yang cocok dengan pencarian.' : 'Belum ada pasien yang tercatat pada jadwal Anda.'}
             </div>
           )}
         </div>
+        {(halaman.kembali || halaman.lanjut) && (
+          <nav aria-label="Halaman pasien" className="flex items-center gap-3 text-sm">
+            {halaman.kembali && <Button href={halaman.kembali} variant="outline">Sebelumnya</Button>}
+            <span>Halaman {halaman.nomor}</span>
+            {halaman.lanjut && <Button href={halaman.lanjut} variant="outline">Berikutnya</Button>}
+          </nav>
+        )}
       </AppLayout>
     );
   }
@@ -59,8 +73,8 @@ export default function RiwayatMedis({ daftarPasien = null, pasien = null, riway
   return (
     <AppLayout role="dokter" title="Detail Riwayat Medis">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button variant="ghost" icon={ArrowLeft} onClick={() => router.visit(rute.dokter.antreanPeriksa)}>
-          Kembali ke Antrean
+        <Button variant="ghost" icon={ArrowLeft} href={dariAntrean ? rute.dokter.antreanPeriksa : rute.dokter.riwayatMedis()}>
+          {dariAntrean ? 'Kembali ke antrean' : 'Kembali ke daftar pasien'}
         </Button>
         {antreanId && (
           <Button icon={Stethoscope} onClick={() => router.visit(rute.dokter.formDiagnosis(antreanId))}>
@@ -87,7 +101,7 @@ export default function RiwayatMedis({ daftarPasien = null, pasien = null, riway
         </div>
 
         <div className="rounded-xl bg-danger-light p-3.5 text-danger">
-          <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase"><ShieldAlert className="size-4" /> Peringatan Alergi</p>
+          <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase"><ShieldAlert className="size-4" /> Peringatan Alergi</p>
           <p className="mt-1 text-xs font-bold">{alergiText}</p>
         </div>
       </section>
@@ -96,7 +110,7 @@ export default function RiwayatMedis({ daftarPasien = null, pasien = null, riway
         <div className="space-y-6">
           <section className="rounded-2xl bg-white p-5 shadow-card">
             <h2 className="flex items-center gap-2 text-base font-bold text-ink">
-              <HeartPulse className="size-5 text-brand" /> Hasil Observasi Triage Terakhir
+              <HeartPulse className="size-5 text-brand" /> Hasil Observasi Triase Terakhir
             </h2>
             <p className="mt-1 text-[11px] text-ink-muted">Waktu pemeriksaan: {triageTerbaru?.waktu_observasi || 'Belum tercatat'}</p>
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
@@ -106,7 +120,7 @@ export default function RiwayatMedis({ daftarPasien = null, pasien = null, riway
                 ['BERAT BADAN', triageTerbaru?.berat_badan ? `${triageTerbaru.berat_badan} kg` : '—'],
               ].map(([label, val]) => (
                 <div key={label} className="rounded-xl bg-surface-low p-3.5">
-                  <p className="text-[10px] font-bold uppercase text-ink-muted">{label}</p>
+                  <p className="text-[11px] font-bold uppercase text-ink-muted">{label}</p>
                   <p className="mt-1 text-base font-extrabold text-ink">{val}</p>
                 </div>
               ))}
@@ -119,11 +133,11 @@ export default function RiwayatMedis({ daftarPasien = null, pasien = null, riway
             </h2>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <div className="rounded-xl bg-surface-low p-4">
-                <p className="text-[10px] font-bold uppercase text-ink-muted">RIWAYAT PENYAKIT DAHULU (RPD)</p>
+                <p className="text-[11px] font-bold uppercase text-ink-muted">RIWAYAT PENYAKIT DAHULU (RPD)</p>
                 <p className="mt-2 text-xs font-semibold text-ink">{riwayatMedis?.riwayat_penyakit || 'Nihil'}</p>
               </div>
               <div className="rounded-xl bg-danger-light p-4 text-danger">
-                <p className="text-[10px] font-bold uppercase">RINCIAN ALERGI</p>
+                <p className="text-[11px] font-bold uppercase">RINCIAN ALERGI</p>
                 <p className="mt-2 text-xs font-bold">{alergiText}</p>
               </div>
             </div>

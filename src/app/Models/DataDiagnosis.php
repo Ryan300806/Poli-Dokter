@@ -19,10 +19,14 @@ class DataDiagnosis extends Model
     public static function simpanDiagnosis(array $dataDiagnosis): array
     {
         return DB::transaction(function () use ($dataDiagnosis) {
+            $antrean = DB::table('antrean')->where('id_antrean', $dataDiagnosis['id_antrean'])->lockForUpdate()->firstOrFail();
+            if ($antrean->status_antrean !== 'dipanggil' || static::where('id_antrean', $antrean->id_antrean)->exists()) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['namaDiagnosis' => 'Status pemeriksaan berubah. Periksa kembali antrean atau diagnosis yang sudah tersimpan.']);
+            }
             $diagnosis = static::query()->create($dataDiagnosis);
 
             $idAntrean = (int) $dataDiagnosis['id_antrean'];
-            $idReservasi = DB::table('antrean')->where('id_antrean', $idAntrean)->value('id_reservasi');
+            $idReservasi = $antrean->id_reservasi;
 
             DB::table('antrean')->where('id_antrean', $idAntrean)->update(['status_antrean' => 'selesai']);
             if ($idReservasi) {

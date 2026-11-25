@@ -7,15 +7,15 @@ export default function StatCard({ label, value, unit, detail, icon: Icon, tone 
   return (
     <div
       className={cn(
-        'flex items-center justify-between gap-3 rounded-2xl bg-white p-5 shadow-card',
+        'flex items-center justify-between gap-3 rounded-xl border border-line bg-white p-4',
         isBrand && 'border-l-4 border-brand',
         isDanger && 'border-l-4 border-danger'
       )}
     >
       <div>
-        <p className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">{label}</p>
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-muted">{label}</p>
         <div className="mt-1.5 flex items-baseline gap-1.5">
-          <span className="text-2xl font-extrabold text-ink">{value}</span>
+          <span className="text-3xl font-semibold tracking-tight tabular-nums text-ink">{value}</span>
           {unit && <span className="text-xs font-medium text-ink-soft">{unit}</span>}
         </div>
         {detail && (

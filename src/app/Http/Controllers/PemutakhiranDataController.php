@@ -36,6 +36,7 @@ class PemutakhiranDataController extends Controller
         return Inertia::render('Pasien/Profil', [
             'pasien' => $pasien->makeVisible(['nik']),
             'riwayat' => $riwayat,
+            'konfirmasi' => $request->boolean('konfirmasi') && DataPasien::perluKonfirmasiProfil($pasien->id_pasien),
             'infoPembaruan' => [
                 'lastUpdatedAt' => $terakhir?->toIso8601String(),
                 'lastUpdatedFormatted' => $terakhir?->format('d-m-Y'),
@@ -105,6 +106,9 @@ class PemutakhiranDataController extends Controller
                 ->with('profileUpdateResult', $result);
         }
 
+        if ($request->boolean('lanjutReservasi')) {
+            return redirect()->route('pasien.penjadwalan-poli')->with('success', 'Data kontak telah dikonfirmasi. Pilih jadwal kunjungan Anda.');
+        }
         return back()
             ->with('success', 'Profil pasien berhasil diperbarui.')
             ->with('profileUpdateResult', $result);

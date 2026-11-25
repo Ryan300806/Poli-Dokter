@@ -14,6 +14,8 @@ export default function FormObservasi({ antreanId, pasien, observasi }) {
   });
   const [error, setError] = useState('');
 
+  const [sibuk, setSibuk] = useState(false);
+
   function submit(e) {
     e.preventDefault();
     const sis = Number(form.tdSis);
@@ -34,6 +36,8 @@ export default function FormObservasi({ antreanId, pasien, observasi }) {
       return;
     }
 
+    if (sibuk) return;
+    setSibuk(true);
     const payload = {
       tekananDarah: `${sis}/${dia}`,
       suhu: form.suhu,
@@ -42,10 +46,12 @@ export default function FormObservasi({ antreanId, pasien, observasi }) {
 
     if (observasi?.id_observasi) {
       router.put(`/perawat/observasi/${observasi.id_observasi}`, payload, {
+        onFinish: () => setSibuk(false),
         onError: (errs) => setError(errs.tekananDarah || errs.suhu || errs.beratBadan || 'Gagal memperbarui observasi.'),
       });
     } else {
       router.post(`/perawat/observasi/${antreanId}`, payload, {
+        onFinish: () => setSibuk(false),
         onError: (errs) => setError(errs.tekananDarah || errs.suhu || errs.beratBadan || 'Gagal menyimpan observasi.'),
       });
     }
@@ -57,15 +63,15 @@ export default function FormObservasi({ antreanId, pasien, observasi }) {
   }
 
   return (
-    <AppLayout role="perawat" title="Formulir Observasi Triage">
+    <AppLayout role="perawat" title="Formulir Observasi Triase">
       <div className="flex items-center justify-between">
         <Button variant="ghost" icon={ArrowLeft} onClick={() => router.visit(rute.perawat.antreanTriage)}>
-          Kembali ke Antrean Triage
+          Kembali ke Antrean Triase
         </Button>
       </div>
 
       <header>
-        <h1 className="text-3xl font-extrabold text-ink">Formulir Observasi Triage &amp; Tanda Vital</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-ink">Formulir Observasi Triase &amp; Tanda Vital</h1>
         <p className="mt-1 text-xs text-ink-soft">
           Input pemeriksaan klinis awal pasien: <b>{pasien.nama} ({pasien.rm})</b> — {pasien.poli}
         </p>
@@ -98,7 +104,7 @@ export default function FormObservasi({ antreanId, pasien, observasi }) {
           <div>
             <div className="flex items-center justify-between text-xs font-bold">
               <span>Tekanan Darah (Sis / Dia)</span>
-              <span className="text-[10px] font-semibold text-brand">Target: &lt; 130/85 mmHg</span>
+              <span className="text-[11px] font-semibold text-brand">Target: &lt; 130/85 mmHg</span>
             </div>
             <div className="mt-2 flex items-center gap-2">
               <div className="flex flex-1 items-center rounded-xl bg-surface-input px-3">
@@ -109,7 +115,7 @@ export default function FormObservasi({ antreanId, pasien, observasi }) {
                   onChange={(e) => { setForm({ ...form, tdSis: e.target.value }); setError(''); }}
                   className="h-11 w-full bg-transparent text-xs font-semibold outline-none"
                 />
-                <span className="text-[10px] text-ink-muted">Sis</span>
+                <span className="text-[11px] text-ink-muted">Sis</span>
               </div>
               <span className="font-bold text-ink-muted">/</span>
               <div className="flex flex-1 items-center rounded-xl bg-surface-input px-3">
@@ -120,16 +126,16 @@ export default function FormObservasi({ antreanId, pasien, observasi }) {
                   onChange={(e) => { setForm({ ...form, tdDia: e.target.value }); setError(''); }}
                   className="h-11 w-full bg-transparent text-xs font-semibold outline-none"
                 />
-                <span className="text-[10px] text-ink-muted">Dia</span>
+                <span className="text-[11px] text-ink-muted">Dia</span>
               </div>
-              <span className="rounded-xl bg-surface-low px-2.5 py-3 text-[10px] font-bold text-ink-soft">mmHg</span>
+              <span className="rounded-xl bg-surface-low px-2.5 py-3 text-[11px] font-bold text-ink-soft">mmHg</span>
             </div>
           </div>
 
           <div>
             <div className="flex items-center justify-between text-xs font-bold">
               <span>Suhu Tubuh</span>
-              <span className="text-[10px] font-medium text-ink-muted">Norm: 36.5 - 37.5 °C</span>
+              <span className="text-[11px] font-medium text-ink-muted">Norm: 36.5 - 37.5 °C</span>
             </div>
             <div className="mt-2 flex items-center rounded-xl bg-surface-input px-3">
               <input
@@ -170,7 +176,7 @@ export default function FormObservasi({ antreanId, pasien, observasi }) {
           </span>
           <div className="flex gap-2">
             <Button variant="secondary" onClick={resetForm}>Reset Form</Button>
-            <Button type="submit" icon={CheckCircle2}>
+            <Button type="submit" disabled={sibuk} icon={CheckCircle2}>
               {observasi?.id_observasi ? 'Perbarui Observasi' : 'Simpan Observasi'}
             </Button>
           </div>

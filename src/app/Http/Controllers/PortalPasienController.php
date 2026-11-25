@@ -12,7 +12,7 @@ class PortalPasienController extends Controller
     public function beranda(Request $request): Response
     {
         $idPasien = (int) $request->session()->get('pasien_id');
-        $pasien = DB::table('pasien')->where('id_pasien', $idPasien)->first();
+        $pasien = DB::table('pasien')->where('id_pasien', $idPasien)->firstOrFail(['id_pasien', 'nama_lengkap']);
 
         $jadwal = DB::table('reservasi as r')
             ->join('dokter as d', 'd.id_dokter', '=', 'r.id_dokter')

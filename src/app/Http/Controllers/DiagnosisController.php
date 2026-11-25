@@ -21,17 +21,20 @@ class DiagnosisController extends Controller
         $row = DataReservasi::konteksPemeriksaan($antrean, $idDokter);
         abort_if(! $row, 404, 'Antrean pemeriksaan tidak ditemukan pada jadwal Anda.');
 
+        $tersimpan = DataDiagnosis::where('id_antrean', $antrean)->orderByDesc('id_diagnosis')->first(['nama_diagnosis', 'rencana_tindakan']);
+        abort_unless($tersimpan || $row->status_antrean === 'dipanggil', 409, 'Panggil pasien setelah triase sebelum membuka formulir.');
         $observasi = DataObservasi::ambilTerbaruUntukAntrean($antrean)?->toArray() ?? [];
         $riwayat = DataRekamMedis::ambilRiwayatDanAlergi((int) $row->id_pasien) ?? [];
 
         return Inertia::render('Dokter/FormDiagnosis', [
             'antreanId' => (int) $row->id_antrean,
+            'diagnosisTersimpan' => $tersimpan,
             'pasienServer' => [
                 'id' => (int) $row->id_pasien,
                 'rm' => 'RM-'.str_pad((string) $row->id_pasien, 6, '0', STR_PAD_LEFT),
                 'nama' => $row->nama_lengkap,
                 'nik' => $row->nik,
-                'umur' => $row->tanggal_lahir ? (int) now()->diffInYears($row->tanggal_lahir) : null,
+                'umur' => $row->tanggal_lahir ? (int) \Carbon\Carbon::parse($row->tanggal_lahir)->age : null,
                 'jk' => $row->jenis_kelamin === 'P' ? 'Perempuan' : 'Laki-laki',
                 'golonganDarah' => $row->golongan_darah,
                 'poli' => $row->nama_poli,
